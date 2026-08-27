@@ -36,7 +36,10 @@ export default class HosxpCompareHosts extends BaseCommand {
     }
 
     const hosts = this.hosts
-      ? this.hosts.split(',').map((h) => h.trim()).filter(Boolean)
+      ? this.hosts
+          .split(',')
+          .map((h) => h.trim())
+          .filter(Boolean)
       : [settings.host]
 
     const now = DateTime.now().setZone('Asia/Bangkok')
@@ -143,7 +146,9 @@ export default class HosxpCompareHosts extends BaseCommand {
       }
       this.logger.log(`    hostname       = ${r.hostname}`)
       this.logger.log(`    server_id      = ${r.serverId}`)
-      this.logger.log(`    read_only      = ${r.readOnly}  ${r.readOnly === 'ON' ? '(replica)' : '(รับการเขียน)'}`)
+      this.logger.log(
+        `    read_only      = ${r.readOnly}  ${r.readOnly === 'ON' ? '(replica)' : '(รับการเขียน)'}`
+      )
       this.logger.log(`    log_bin        = ${r.logBin}`)
       this.logger.log(`    เวลาในเครื่อง   = ${r.dbNow}`)
       this.logger.log(`    คิววันนี้        = ${r.rowsToday} แถว`)
@@ -179,10 +184,7 @@ export default class HosxpCompareHosts extends BaseCommand {
     if (behind.every((r) => (newest.rowsToday ?? 0) === (r.rowsToday ?? 0))) {
       this.logger.info('  → ทุกเครื่องมีข้อมูลเท่ากันในวินาทีที่วัด')
     } else {
-      this.logger.warning(
-        '  → มีเครื่องที่ข้อมูลตามหลัง การแจ้งเตือนจะช้าตามส่วนต่างนั้น'
-      )
+      this.logger.warning('  → มีเครื่องที่ข้อมูลตามหลัง การแจ้งเตือนจะช้าตามส่วนต่างนั้น')
     }
   }
-
 }

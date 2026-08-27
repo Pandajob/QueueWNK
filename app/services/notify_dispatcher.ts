@@ -86,7 +86,10 @@ export async function dispatch(input: DispatchInput): Promise<DispatchResult> {
             ...base,
             status: 'sent',
             responseCode: code,
-            error: payload && !useFlex ? 'กลุ่มนี้ตั้งไว้ว่ารับการ์ดไม่ได้ — ส่งเป็นข้อความธรรมดาแทน' : null,
+            error:
+              payload && !useFlex
+                ? 'กลุ่มนี้ตั้งไว้ว่ารับการ์ดไม่ได้ — ส่งเป็นข้อความธรรมดาแทน'
+                : null,
             sentAt: DateTime.now(),
           })
         )

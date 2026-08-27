@@ -68,9 +68,7 @@ export default class HosxpProbe506 extends BaseCommand {
       const live: string[] = []
       for (const table of candidates) {
         try {
-          const [row] = await client.select<{ n: number }>(
-            `SELECT COUNT(*) AS n FROM \`${table}\``
-          )
+          const [row] = await client.select<{ n: number }>(`SELECT COUNT(*) AS n FROM \`${table}\``)
           this.logger.log(`    ${table}: ${row.n}`)
           if (Number(row.n) > 0) live.push(table)
         } catch (error) {
@@ -85,10 +83,7 @@ export default class HosxpProbe506 extends BaseCommand {
           `SHOW COLUMNS FROM \`${table}\``
         )
         this.logger.log(
-          '    ' +
-            columns
-              .map((c) => `${c.Field}:${c.Type}${c.Key ? `(${c.Key})` : ''}`)
-              .join('  ')
+          '    ' + columns.map((c) => `${c.Field}:${c.Type}${c.Key ? `(${c.Key})` : ''}`).join('  ')
         )
 
         // หาคอลัมน์วันที่ไว้เรียงลำดับ — ชื่อไม่เหมือนกันทุกตาราง

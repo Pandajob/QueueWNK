@@ -150,11 +150,23 @@ export default class StatusController {
     }
 
     if (worker.status === 'error') {
-      return { title, state: 'fail', headline: 'ทำงานผิดพลาด', detail: worker.message ?? undefined, href }
+      return {
+        title,
+        state: 'fail',
+        headline: 'ทำงานผิดพลาด',
+        detail: worker.message ?? undefined,
+        href,
+      }
     }
 
     if (worker.status === 'waiting_config') {
-      return { title, state: 'warn', headline: 'รอการตั้งค่า', detail: worker.message ?? undefined, href }
+      return {
+        title,
+        state: 'warn',
+        headline: 'รอการตั้งค่า',
+        detail: worker.message ?? undefined,
+        href,
+      }
     }
 
     return {

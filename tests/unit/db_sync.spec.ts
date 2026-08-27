@@ -29,7 +29,11 @@ function replication(overrides: Partial<Replication> = {}): Replication {
 }
 
 /** เครื่องที่ตอบครบทุกตารางด้วยตัวเลขที่กำหนด */
-function probe(host: string, counts: Partial<Record<string, number>>, extra: Partial<HostProbe> = {}) {
+function probe(
+  host: string,
+  counts: Partial<Record<string, number>>,
+  extra: Partial<HostProbe> = {}
+) {
   const filled: Record<string, number | null> = {}
   const latest: Record<string, string | null> = {}
 
@@ -292,7 +296,9 @@ test.group('การ์ดฐานข้อมูล', () => {
     }
   })
 
-  test('contents ต้องเป็น object ไม่ใช่ string — ปลายทางดร็อปเงียบถ้าส่งเป็น string', ({ assert }) => {
+  test('contents ต้องเป็น object ไม่ใช่ string — ปลายทางดร็อปเงียบถ้าส่งเป็น string', ({
+    assert,
+  }) => {
     const report = compareProbes([probe('a', same), probe('b', same)], THRESHOLDS)
 
     for (const message of buildSyncFlex(report)) {
@@ -310,16 +316,20 @@ test.group('การ์ดฐานข้อมูล', () => {
   test('เครื่องเยอะและมีปัญหาพร้อมกัน การ์ดต้องแตกใบเอง ไม่ทะลุเพดาน', ({ assert }) => {
     // เคสจริงที่เคยพัง — สามเครื่องใส่รายละเอียดครบทำให้ใบเดียว 10,388 ไบต์
     const many = Array.from({ length: 6 }, (_, i) =>
-      probe(`เครื่องที่ยาวมากเพื่อกินที่หมายเลข-${i}.hospital.local`, { ...same, queue: 300 - i }, {
-        clockSkewSeconds: 400,
-        replication: replication({
-          gtidCurrent: `0-${i}-65004789${i}`,
-          gtidSeq: { '0': 650047890 - i * 1000 },
-          slaveRunning: false,
-          writableReplica: true,
-          slavesConnected: 2,
-        }),
-      })
+      probe(
+        `เครื่องที่ยาวมากเพื่อกินที่หมายเลข-${i}.hospital.local`,
+        { ...same, queue: 300 - i },
+        {
+          clockSkewSeconds: 400,
+          replication: replication({
+            gtidCurrent: `0-${i}-65004789${i}`,
+            gtidSeq: { '0': 650047890 - i * 1000 },
+            slaveRunning: false,
+            writableReplica: true,
+            slavesConnected: 2,
+          }),
+        }
+      )
     )
 
     const messages = buildSyncFlex(compareProbes(many, THRESHOLDS))
@@ -358,7 +368,9 @@ test.group('vn', () => {
   })
 
   test('ช่วง vn ของวันนี้เป็นปี พ.ศ. สองหลักท้าย', ({ assert }) => {
-    const [from, to] = vnRangeToday(DateTime.fromISO('2026-08-05T10:00:00', { zone: 'Asia/Bangkok' }))
+    const [from, to] = vnRangeToday(
+      DateTime.fromISO('2026-08-05T10:00:00', { zone: 'Asia/Bangkok' })
+    )
 
     assert.equal(from, '690805000000')
     assert.equal(to, '690805999999')
@@ -404,7 +416,15 @@ test.group('ฟอร์มเทียบเครื่องฐานข้�
       digestAt: null,
       hosts: [
         // แถวเปล่าที่เตรียมไว้ให้กรอกเครื่องใหม่ แต่ผู้ใช้ไม่ได้กรอก
-        { id: null, label: null, host: null, port: '3306', username: null, password: null, enabled: '1' },
+        {
+          id: null,
+          label: null,
+          host: null,
+          port: '3306',
+          username: null,
+          password: null,
+          enabled: '1',
+        },
       ],
     })
 

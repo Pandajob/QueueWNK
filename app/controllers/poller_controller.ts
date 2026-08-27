@@ -1,9 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import {
-  DepartmentSetting,
-  Notification,
-  PollerSetting,
-} from '#models/poller_models'
+import { DepartmentSetting, Notification, PollerSetting } from '#models/poller_models'
 import { ALERT_CASES } from '#services/alert_cases'
 import { audit } from '#services/audit'
 import vine from '@vinejs/vine'
@@ -79,10 +75,7 @@ export default class PollerController {
     notifications.baseUrl('/log')
     if (status) notifications.queryString({ status })
 
-    const counts = await Notification.query()
-      .select('status')
-      .count('* as total')
-      .groupBy('status')
+    const counts = await Notification.query().select('status').count('* as total').groupBy('status')
 
     const summary: Record<string, number> = {}
     for (const row of counts) {

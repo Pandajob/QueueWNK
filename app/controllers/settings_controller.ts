@@ -165,7 +165,7 @@ export default class SettingsController {
       stored.lastTestOk = result.ok
       stored.lastTestError = result.ok
         ? null
-        : result.checks.find((c) => c.status === 'fail')?.detail ?? null
+        : (result.checks.find((c) => c.status === 'fail')?.detail ?? null)
       await stored.save()
     }
 
@@ -222,7 +222,7 @@ export default class SettingsController {
       stored.lastTestOk = result.ok
       stored.lastTestError = result.ok
         ? null
-        : result.checks.find((c) => c.status === 'fail')?.detail ?? null
+        : (result.checks.find((c) => c.status === 'fail')?.detail ?? null)
       await stored.save()
     }
 
@@ -267,7 +267,9 @@ export default class SettingsController {
 
     session.flash(
       'success',
-      settings.groupId ? 'บันทึกแล้ว' : 'บันทึกแล้ว — ยังไม่ได้เลือกกลุ่ม จึงยังไม่มีการแจ้งเตือนออกไป'
+      settings.groupId
+        ? 'บันทึกแล้ว'
+        : 'บันทึกแล้ว — ยังไม่ได้เลือกกลุ่ม จึงยังไม่มีการแจ้งเตือนออกไป'
     )
     return response.redirect().toRoute('settings.notify')
   }

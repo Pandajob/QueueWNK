@@ -52,10 +52,7 @@ export default class NotifyController {
       NotifyMessage.query().orderBy('id', 'desc').limit(8),
       NotifyMessage.query().where('status', 'failed').orderBy('id', 'desc').limit(5),
       CdcuSetting.current(),
-      CdcuSeen.query()
-        .where('created_at', '>=', startOfToday)
-        .count('* as total')
-        .first(),
+      CdcuSeen.query().where('created_at', '>=', startOfToday).count('* as total').first(),
       WorkerHeartbeat.findBy('name', 'notify:watch'),
     ])
 
@@ -100,7 +97,10 @@ export default class NotifyController {
     messages.baseUrl('/notify/history')
     messages.queryString({ status, source })
 
-    const counts = await NotifyMessage.query().select('status').count('* as total').groupBy('status')
+    const counts = await NotifyMessage.query()
+      .select('status')
+      .count('* as total')
+      .groupBy('status')
     const summary: Record<string, number> = {}
     for (const row of counts) summary[row.status] = Number(row.$extras.total)
 

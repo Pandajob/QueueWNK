@@ -296,9 +296,7 @@ export class NotifySchedule extends BaseModel {
     if (this.frequency === 'daily') return `ทุกวัน ${this.runAt}`
 
     if (this.frequency === 'weekly') {
-      const names = (this.daysOfWeek ?? [])
-        .map((day) => THAI_WEEKDAY_SHORT[day])
-        .filter(Boolean)
+      const names = (this.daysOfWeek ?? []).map((day) => THAI_WEEKDAY_SHORT[day]).filter(Boolean)
       return names.length ? `ทุก${names.join(' ')} ${this.runAt}` : `รายสัปดาห์ ${this.runAt}`
     }
 

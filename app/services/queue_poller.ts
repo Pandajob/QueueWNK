@@ -207,7 +207,10 @@ export class QueuePoller {
     for (const row of rows) {
       const previous = states.get(row.vn)
       const notifiable =
-        row.dep !== null && !NEVER_NOTIFY.has(row.dep) && enabled.has(row.dep) && row.status === WAITING_STATUS
+        row.dep !== null &&
+        !NEVER_NOTIFY.has(row.dep) &&
+        enabled.has(row.dep) &&
+        row.status === WAITING_STATUS
 
       const events: AlertCaseKey[] = []
 
@@ -233,7 +236,11 @@ export class QueuePoller {
         if (await this.#queue(row, caseKey, aheadByVn.get(row.vn) ?? 0)) created++
       }
 
-      await this.#saveState(row, previous, events.includes('queue_near') ? (aheadByVn.get(row.vn) ?? 0) : undefined)
+      await this.#saveState(
+        row,
+        previous,
+        events.includes('queue_near') ? (aheadByVn.get(row.vn) ?? 0) : undefined
+      )
     }
 
     return created
@@ -244,8 +251,7 @@ export class QueuePoller {
     const template = await AlertTemplate.findBy('case_key', caseKey)
     if (!template?.isEnabled) return false
 
-    const discriminator =
-      caseKey === 'queue_near' ? 'near' : `${row.dep ?? ''}-${row.depq ?? ''}`
+    const discriminator = caseKey === 'queue_near' ? 'near' : `${row.dep ?? ''}-${row.depq ?? ''}`
     const dedupKey = `${row.vn}:${caseKey}:${discriminator}`
 
     const values: Partial<Record<PlaceholderKey, string>> = {
@@ -352,7 +358,12 @@ export class QueuePoller {
 
       if (settings.dryRun) {
         logger.info(
-          { vn: notification.vn, cid: maskCid(cid), case: notification.caseKey, depq: notification.depq },
+          {
+            vn: notification.vn,
+            cid: maskCid(cid),
+            case: notification.caseKey,
+            depq: notification.depq,
+          },
           'DRY RUN — ถ้าเปิดใช้งานจริงจะส่งรายการนี้'
         )
         notification.merge({ status: 'skipped', lastError: 'DRY RUN — ไม่ได้ส่งจริง' })

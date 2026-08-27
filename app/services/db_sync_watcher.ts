@@ -6,7 +6,12 @@ import { NotifyGroup } from '#models/notify_system'
 import { Watermark } from '#models/poller_models'
 import { dispatch } from '#services/notify_dispatcher'
 import { scrubCid } from '#services/notify_client'
-import { CLOCK_SKEW_WARN_SECONDS, METRICS, ROLE_LABELS, runSyncCheck } from '#services/db_sync_checker'
+import {
+  CLOCK_SKEW_WARN_SECONDS,
+  METRICS,
+  ROLE_LABELS,
+  runSyncCheck,
+} from '#services/db_sync_checker'
 import type { SyncReport } from '#services/db_sync_checker'
 import { buildSyncFlex } from '#services/db_sync_flex'
 
@@ -84,10 +89,7 @@ export function buildSyncMessage(report: SyncReport, title = 'ตรวจฐา
         .join(' · ')
 
       lines.push(`${mark} ${identity}`)
-      lines.push(
-        '   ' +
-          METRICS.map((m) => `${m.label} ${host.counts[m.key] ?? '—'}`).join(' · ')
-      )
+      lines.push('   ' + METRICS.map((m) => `${m.label} ${host.counts[m.key] ?? '—'}`).join(' · '))
 
       const repParts = [
         rep?.gtidCurrent ? `GTID ${rep.gtidCurrent}` : null,
@@ -129,10 +131,7 @@ export function buildSyncMessage(report: SyncReport, title = 'ตรวจฐา
   }
 
   if (report.verdict === 'diverged') {
-    lines.push(
-      '',
-      'แต่ละเครื่องมีแถวที่อีกเครื่องไม่มี รอไปไม่หายเอง — ให้ DBA ตรวจ replication'
-    )
+    lines.push('', 'แต่ละเครื่องมีแถวที่อีกเครื่องไม่มี รอไปไม่หายเอง — ให้ DBA ตรวจ replication')
   }
 
   return lines.join('\n')
@@ -178,7 +177,12 @@ export class DbSyncWatcher {
       return { checked: false, sent: 0, note: 'ยังไม่ได้ตั้งค่าการเชื่อมต่อ HOSxP' }
     }
     if (report.verdict === 'no_data') {
-      return { checked: true, verdict: report.verdict, sent: 0, note: 'ยังไม่ได้เพิ่มเครื่องที่จะเฝ้า' }
+      return {
+        checked: true,
+        verdict: report.verdict,
+        sent: 0,
+        note: 'ยังไม่ได้เพิ่มเครื่องที่จะเฝ้า',
+      }
     }
 
     const sent = await this.#maybeSend(settings, report, now)
@@ -258,8 +262,15 @@ export class DbSyncWatcher {
     // ปัญหาคนละเรื่องกับรอบก่อนต้องบอกทันที ไม่ต้องรอครบ throttle
     // เช่นเมื่อกี้แค่ตามหลัง ตอนนี้ต่อไม่ได้ — คนละความรุนแรงกันมาก
     const previous = await Watermark.get(LAST_SIGNATURE_KEY)
-    if (state === 'warn' && report.signature === previous && (await this.#throttled(settings, now))) {
-      logger.debug({ signature: report.signature }, 'ข้ามการเตือนฐานข้อมูล — เพิ่งเตือนเรื่องเดิมไป')
+    if (
+      state === 'warn' &&
+      report.signature === previous &&
+      (await this.#throttled(settings, now))
+    ) {
+      logger.debug(
+        { signature: report.signature },
+        'ข้ามการเตือนฐานข้อมูล — เพิ่งเตือนเรื่องเดิมไป'
+      )
       return 0
     }
 

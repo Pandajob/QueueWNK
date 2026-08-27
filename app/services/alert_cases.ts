@@ -6,13 +6,7 @@
  * เป็นตัวตัดสิน — ใส่ url = ได้การ์ดที่มีปุ่ม, เว้นว่าง = ไม่มีปุ่ม
  */
 
-export type PlaceholderKey =
-  | 'name'
-  | 'queue_no'
-  | 'queue_waiting'
-  | 'hn_no'
-  | 'service'
-  | 'url'
+export type PlaceholderKey = 'name' | 'queue_no' | 'queue_waiting' | 'hn_no' | 'service' | 'url'
 
 export const PLACEHOLDER_LABELS: Record<PlaceholderKey, string> = {
   name: 'คำนำหน้า ชื่อ นามสกุล',
@@ -50,9 +44,11 @@ export const ALERT_CASES: Record<AlertCaseKey, AlertCase> = {
     supportsUrl: false,
     defaults: {
       header: 'ยินดีต้อนรับ',
-      lineText: 'สวัสดีคุณ {name} ยินดีต้อนรับเข้าสู่บริการของโรงพยาบาล หากมีข้อสงสัยสอบถามเจ้าหน้าที่ได้เลย',
+      lineText:
+        'สวัสดีคุณ {name} ยินดีต้อนรับเข้าสู่บริการของโรงพยาบาล หากมีข้อสงสัยสอบถามเจ้าหน้าที่ได้เลย',
       messageTitle: 'ยินดีต้อนรับ',
-      messageHtml: '<div><strong>สวัสดีคุณ {name} ยินดีต้อนรับเข้าสู่บริการของโรงพยาบาล</strong></div>',
+      messageHtml:
+        '<div><strong>สวัสดีคุณ {name} ยินดีต้อนรับเข้าสู่บริการของโรงพยาบาล</strong></div>',
       messageText: 'ยินดีต้อนรับ',
     },
   },

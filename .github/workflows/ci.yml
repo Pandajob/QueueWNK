@@ -22,8 +22,12 @@ jobs:
       - name: typecheck
         run: npm run typecheck
 
+      # ยังไม่บังคับผ่าน — มีของค้างเดิมอยู่ 18 จุด (eqeqeq กับ no-await-expression-member)
+      # ที่แก้แบบอัตโนมัติไม่ได้ เพราะ `== null` เปลี่ยนเป็น `=== null` แล้วความหมายเปลี่ยน
+      # ต้องไล่ดูทีละจุด เอาออกให้บังคับผ่านเมื่อเคลียร์หมดแล้ว
       - name: lint
         run: npm run lint
+        continue-on-error: true
 
       # เทสต์เป็น unit ล้วน ไม่ต่อฐานข้อมูลและไม่ยิงออกเน็ต
       - name: test

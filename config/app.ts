@@ -1,5 +1,4 @@
 import env from '#start/env'
-import app from '@adonisjs/core/services/app'
 import { Secret } from '@adonisjs/core/helpers'
 import { defineConfig } from '@adonisjs/core/http'
 
@@ -34,7 +33,9 @@ export const http = defineConfig({
     path: '/',
     maxAge: '2h',
     httpOnly: true,
-    secure: app.inProduction,
+    // ดูเหตุผลที่ไม่ผูกกับ NODE_ENV ใน start/env.ts — cookie ของ CSRF ก็ใช้ค่านี้
+    // ตั้งผิดแล้วฟอร์มทุกหน้าจะถูกปฏิเสธ ไม่ใช่แค่ล็อกอิน
+    secure: env.get('COOKIE_SECURE', false),
     sameSite: 'lax',
   },
 })

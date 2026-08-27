@@ -28,6 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ชื่อ image ต้องเป็นตัวพิมพ์เล็กทั้งหมด แต่ชื่อบัญชี GitHub มีตัวใหญ่ได้
+      # ปล่อยไว้แล้วขั้นตอนออกใบรับรองจะล้มเมื่อเจ้าของ repo ใช้ตัวพิมพ์ใหญ่
+      - name: แปลงชื่อ repo เป็นตัวพิมพ์เล็ก
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
@@ -42,7 +47,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -66,6 +71,6 @@ jobs:
       - name: แนบใบรับรองที่มาของ image
         uses: actions/attest-build-provenance@v2
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ${{ env.IMAGE }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true

@@ -37,7 +37,13 @@ export default class extends BaseSchema {
     this.schema.createTable('notify_ops_settings', (table) => {
       table.increments('id')
       // null = ปิดการแจ้งเตือนทีมงาน
-      table.integer('group_id').unsigned().nullable().references('id').inTable('notify_groups').onDelete('SET NULL')
+      table
+        .integer('group_id')
+        .unsigned()
+        .nullable()
+        .references('id')
+        .inTable('notify_groups')
+        .onDelete('SET NULL')
 
       table.boolean('on_error').notNullable().defaultTo(true)
       table.boolean('on_recover').notNullable().defaultTo(true)

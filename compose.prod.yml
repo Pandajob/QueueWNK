@@ -10,9 +10,10 @@
 name: queuewnk
 
 x-app: &app
-  # เปลี่ยน OWNER เป็นชื่อบัญชี GitHub ที่เก็บ repo นี้
+  # ⚠️ เปลี่ยน change-me เป็นชื่อบัญชี GitHub ที่เก็บ repo นี้ (ต้องเป็นตัวพิมพ์เล็กทั้งหมด
+  # docker ไม่ยอมรับตัวพิมพ์ใหญ่ในชื่อ image) หรือจะตั้ง QUEUEWNK_IMAGE ใน .env แทนก็ได้
   # ยึดเลขรุ่นไว้ (ไม่ใช่ latest) จะได้รู้ว่าตอนนี้รันตัวไหนอยู่ และย้อนกลับได้เวลามีปัญหา
-  image: ${QUEUEWNK_IMAGE:-ghcr.io/OWNER/queuewnk:0.1.0}
+  image: ${QUEUEWNK_IMAGE:-ghcr.io/change-me/queuewnk:0.1.0}
   env_file: .env
   environment:
     NODE_ENV: production
@@ -56,9 +57,10 @@ services:
     <<: *app
     command: node bin/server.js
     ports:
-      # ให้เข้าได้จากเครื่องอื่นในโรงพยาบาล เปลี่ยนเป็น 127.0.0.1:3333:3333
+      # เปลี่ยนพอร์ตได้ที่ WEB_PORT ใน .env เผื่อเครื่องนั้นมีอย่างอื่นใช้ 3333 อยู่แล้ว
+      # ให้เข้าได้จากเครื่องอื่นในโรงพยาบาล เปลี่ยนเป็น 127.0.0.1:${WEB_PORT:-3333}:3333
       # ถ้าจะให้เข้าได้เฉพาะเครื่องนี้ (แนะนำถ้ามี reverse proxy อยู่หน้าแล้ว)
-      - '3333:3333'
+      - '${WEB_PORT:-3333}:3333'
 
   # poller คิว — ต้องมี instance เดียวเท่านั้น ไม่งั้นผู้ป่วยได้ข้อความซ้ำ
   worker:

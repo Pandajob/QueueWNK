@@ -151,8 +151,8 @@ export default class NotifySchedulesController {
       templateId: data.templateId,
       frequency: data.frequency,
       runAt: data.runAt,
-      daysOfWeek: data.frequency === 'weekly' ? data.daysOfWeek ?? [] : null,
-      dayOfMonth: data.frequency === 'monthly' ? data.dayOfMonth ?? 1 : null,
+      daysOfWeek: data.frequency === 'weekly' ? (data.daysOfWeek ?? []) : null,
+      dayOfMonth: data.frequency === 'monthly' ? (data.dayOfMonth ?? 1) : null,
       isEnabled: Boolean(data.isEnabled),
     }
   }

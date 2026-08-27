@@ -61,7 +61,11 @@ test.group('ตารางเวลา — ถึงรอบหรือยั
   test('รายเดือนส่งเฉพาะวันที่กำหนด', ({ assert }) => {
     const row = schedule({ frequency: 'monthly', dayOfMonth: 1, runAt: '08:00' })
     assert.isFalse(row.isDue(at('2026-08-04T09:00')))
-    assert.isTrue(schedule({ frequency: 'monthly', dayOfMonth: 4, runAt: '08:00' }).isDue(at('2026-08-04T09:00')))
+    assert.isTrue(
+      schedule({ frequency: 'monthly', dayOfMonth: 4, runAt: '08:00' }).isDue(
+        at('2026-08-04T09:00')
+      )
+    )
   })
 })
 

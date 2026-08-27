@@ -97,13 +97,17 @@ router
     router.get('/notify/groups', [NotifyGroupsController, 'index']).as('notify.groups')
     router.get('/notify/groups/new', [NotifyGroupsController, 'create']).as('notify.groups.create')
     router.post('/notify/groups', [NotifyGroupsController, 'store']).as('notify.groups.store')
-    router.post('/notify/groups/test', [NotifyGroupsController, 'test']).as('notify.groups.test.new')
+    router
+      .post('/notify/groups/test', [NotifyGroupsController, 'test'])
+      .as('notify.groups.test.new')
     router.get('/notify/groups/:id/edit', [NotifyGroupsController, 'edit']).as('notify.groups.edit')
     router.post('/notify/groups/:id', [NotifyGroupsController, 'update']).as('notify.groups.update')
     router
       .post('/notify/groups/:id/delete', [NotifyGroupsController, 'destroy'])
       .as('notify.groups.destroy')
-    router.post('/notify/groups/:id/test', [NotifyGroupsController, 'test']).as('notify.groups.test')
+    router
+      .post('/notify/groups/:id/test', [NotifyGroupsController, 'test'])
+      .as('notify.groups.test')
     router
       .post('/notify/groups/:id/send-test', [NotifyGroupsController, 'sendTest'])
       .as('notify.groups.send')
@@ -125,7 +129,9 @@ router
     router
       .post('/notify/datasets/:id/delete', [NotifyDatasetsController, 'destroy'])
       .as('notify.datasets.destroy')
-    router.post('/notify/datasets/:id/run', [NotifyDatasetsController, 'run']).as('notify.datasets.run')
+    router
+      .post('/notify/datasets/:id/run', [NotifyDatasetsController, 'run'])
+      .as('notify.datasets.run')
 
     router.get('/notify/templates', [NotifyTemplatesController, 'index']).as('notify.templates')
     router

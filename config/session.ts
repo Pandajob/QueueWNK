@@ -1,5 +1,4 @@
 import env from '#start/env'
-import app from '@adonisjs/core/services/app'
 import { defineConfig, stores } from '@adonisjs/session'
 
 const sessionConfig = defineConfig({
@@ -25,7 +24,9 @@ const sessionConfig = defineConfig({
   cookie: {
     path: '/',
     httpOnly: true,
-    secure: app.inProduction,
+    // ไม่ผูกกับ NODE_ENV เพราะ "production" ที่โรงพยาบาลคือ http:// บนวงแลน ไม่ใช่ https://
+    // ตั้ง secure ตามนั้นจะทำให้ล็อกอินไม่ได้เลย ดูคำอธิบายเต็มใน start/env.ts
+    secure: env.get('COOKIE_SECURE', false),
     sameSite: 'lax',
   },
 

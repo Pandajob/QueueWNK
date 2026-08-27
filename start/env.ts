@@ -27,6 +27,19 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   /*
   |----------------------------------------------------------
+  | ส่ง cookie เฉพาะเมื่อเชื่อมต่อผ่าน HTTPS หรือไม่
+  |----------------------------------------------------------
+  |
+  | ไม่ระบุ = false เพราะโรงพยาบาลส่วนใหญ่เปิดหน้าเว็บนี้ผ่าน http://<ไอพี>:3333
+  | บนวงแลนภายใน ถ้าตั้งเป็น true ในสภาพนั้น เบราว์เซอร์จะไม่ส่ง cookie กลับมาเลย
+  | ผลคือล็อกอินแล้วเด้งกลับหน้าล็อกอินวนไปเรื่อย ๆ โดยไม่มีข้อความบอกว่าผิดตรงไหน
+  |
+  | ตั้งเป็น true เมื่อมี HTTPS อยู่หน้าระบบแล้วเท่านั้น
+  */
+  COOKIE_SECURE: Env.schema.boolean.optional(),
+
+  /*
+  |----------------------------------------------------------
   | Variables for configuring database connection
   |----------------------------------------------------------
   */
@@ -34,5 +47,5 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_PORT: Env.schema.number(),
   DB_USER: Env.schema.string(),
   DB_PASSWORD: Env.schema.string.optional(),
-  DB_DATABASE: Env.schema.string()
+  DB_DATABASE: Env.schema.string(),
 })

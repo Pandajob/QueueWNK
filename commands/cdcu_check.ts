@@ -78,7 +78,9 @@ export default class CdcuCheck extends BaseCommand {
         to = this.to ? isoDate(this.to) : DateTime.now().setZone('Asia/Bangkok').toISODate()!
         from = this.from
           ? isoDate(this.from)
-          : DateTime.fromISO(to).minus({ days: Math.max(this.days || 7, 1) - 1 }).toISODate()!
+          : DateTime.fromISO(to)
+              .minus({ days: Math.max(this.days || 7, 1) - 1 })
+              .toISODate()!
       } catch (error) {
         this.logger.error(error.message)
         this.exitCode = 1
@@ -193,7 +195,9 @@ export default class CdcuCheck extends BaseCommand {
     if (sent === chunks.length) {
       this.logger.success(`ส่งเข้ากลุ่ม "${group.name}" แล้ว ${sent} ข้อความ`)
     } else {
-      this.logger.error(`ส่งได้ ${sent} จาก ${chunks.length} ข้อความ — ดูสาเหตุที่หน้าประวัติการส่ง`)
+      this.logger.error(
+        `ส่งได้ ${sent} จาก ${chunks.length} ข้อความ — ดูสาเหตุที่หน้าประวัติการส่ง`
+      )
       this.exitCode = 1
     }
   }
@@ -214,7 +218,8 @@ function isoDate(input: string) {
   let day: number
 
   if (slash) [, day, month, year] = slash.map(Number) as unknown as [never, number, number, number]
-  else if (dash) [, year, month, day] = dash.map(Number) as unknown as [never, number, number, number]
+  else if (dash)
+    [, year, month, day] = dash.map(Number) as unknown as [never, number, number, number]
   else throw new Error(`อ่านวันที่ "${input}" ไม่ออก — ใช้แบบ 1/8/2569 หรือ 2026-08-01`)
 
   if (year > 2400) year -= 543

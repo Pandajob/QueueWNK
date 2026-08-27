@@ -80,9 +80,7 @@ export async function testHosxpConnection(config: HosxpConfig): Promise<TestResu
 
   // --- เวลาต่างกันเท่าไร -----------------------------------------------------
   try {
-    const [row] = await client.select<{ db_epoch: number }>(
-      `SELECT UNIX_TIMESTAMP() AS db_epoch`
-    )
+    const [row] = await client.select<{ db_epoch: number }>(`SELECT UNIX_TIMESTAMP() AS db_epoch`)
     const skew = Math.floor(Date.now() / 1000) - Number(row.db_epoch)
 
     checks.push({

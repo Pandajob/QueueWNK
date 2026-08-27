@@ -47,7 +47,7 @@ export default class CdcuController {
       isEnabled: willEnable,
       groupId: data.groupId ?? null,
       watchAll: Boolean(data.watchAll),
-      watchedCodes: data.watchAll ? null : data.watchedCodes ?? [],
+      watchedCodes: data.watchAll ? null : (data.watchedCodes ?? []),
       includeHn: Boolean(data.includeHn),
       includeName: Boolean(data.includeName),
       includePhone: Boolean(data.includePhone),

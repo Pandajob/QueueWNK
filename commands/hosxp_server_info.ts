@@ -64,7 +64,9 @@ export default class HosxpServerInfo extends BaseCommand {
         this.logger.log('    SHOW SLAVE STATUS ว่าง — ไม่ได้เป็น replica ของใคร')
       }
     } catch (error) {
-      this.logger.log(`    SHOW SLAVE STATUS: ${error.code ?? error.message} (ต้องมีสิทธิ์ REPLICATION CLIENT)`)
+      this.logger.log(
+        `    SHOW SLAVE STATUS: ${error.code ?? error.message} (ต้องมีสิทธิ์ REPLICATION CLIENT)`
+      )
     }
 
     // --- ต้นทุน query ที่ poller ใช้จริง ---------------------------------------

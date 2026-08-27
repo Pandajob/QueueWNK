@@ -255,9 +255,7 @@ async function readReplication(
   const [pos] = await client.select<{
     current_pos: string | null
     slave_pos: string | null
-  }>(
-    `SELECT @@global.gtid_current_pos AS current_pos, @@global.gtid_slave_pos AS slave_pos`
-  )
+  }>(`SELECT @@global.gtid_current_pos AS current_pos, @@global.gtid_slave_pos AS slave_pos`)
 
   const status = await client.select<{ Variable_name: string; Value: string }>(
     `SHOW GLOBAL STATUS WHERE Variable_name IN
@@ -314,7 +312,14 @@ async function readReplication(
  * ไม่ throw — เครื่องต่อไม่ได้คือ "ผลการตรวจ" อย่างหนึ่ง ไม่ใช่ข้อผิดพลาดของเรา
  */
 export async function probeHost(
-  target: { id: number | null; label: string; host: string; port: number; username?: string | null; password?: string | null },
+  target: {
+    id: number | null
+    label: string
+    host: string
+    port: number
+    username?: string | null
+    password?: string | null
+  },
   shared: Credentials,
   now = DateTime.now().setZone('Asia/Bangkok')
 ): Promise<HostProbe> {
@@ -441,7 +446,10 @@ export function compareProbes(probes: HostProbe[], thresholds: SyncThresholds): 
       verdict: 'unreachable',
       headline: `ต่อไม่ได้ทั้ง ${probes.length} เครื่อง`,
       shouldAlert: true,
-      signature: `unreachable:${unreachable.map((p) => p.host).sort().join(',')}`,
+      signature: `unreachable:${unreachable
+        .map((p) => p.host)
+        .sort()
+        .join(',')}`,
     }
   }
 
@@ -463,7 +471,13 @@ export function compareProbes(probes: HostProbe[], thresholds: SyncThresholds): 
       if (item.value === best) continue
       gapsByHost[item.host] = [
         ...(gapsByHost[item.host] ?? []),
-        { metric: metric.key, label: metric.label, best, value: item.value, gap: best - item.value },
+        {
+          metric: metric.key,
+          label: metric.label,
+          best,
+          value: item.value,
+          gap: best - item.value,
+        },
       ]
     }
   }
@@ -536,7 +550,12 @@ export function compareProbes(probes: HostProbe[], thresholds: SyncThresholds): 
     probe.status = gapsByHost[probe.host]?.length ? 'behind' : 'ok'
   }
 
-  const maxGap = Math.max(0, ...Object.values(gapsByHost).flat().map((g) => g.gap))
+  const maxGap = Math.max(
+    0,
+    ...Object.values(gapsByHost)
+      .flat()
+      .map((g) => g.gap)
+  )
 
   const verdict: SyncVerdict = unreachable.length
     ? 'unreachable'
@@ -564,7 +583,9 @@ export function compareProbes(probes: HostProbe[], thresholds: SyncThresholds): 
     }
     if (diverged) return 'ข้อมูลแยกทางกัน — คนละเครื่องมีของที่อีกเครื่องไม่มี'
     if (behindHosts.length) {
-      return `มีเครื่องตามหลัง ${maxGap} แถว` + (lagSeconds ? ` · ห่างกัน ${lagSeconds} วินาที` : '')
+      return (
+        `มีเครื่องตามหลัง ${maxGap} แถว` + (lagSeconds ? ` · ห่างกัน ${lagSeconds} วินาที` : '')
+      )
     }
     if (gtidLagMax !== null && gtidLagMax > thresholds.gtidLagWarn) {
       return `ข้อมูลวันนี้เท่ากัน แต่ตามหลัง ${gtidLagMax.toLocaleString()} รายการ`
@@ -587,7 +608,10 @@ export function compareProbes(probes: HostProbe[], thresholds: SyncThresholds): 
     // ปัญหาคนละเรื่องต้องแจ้งได้ทันทีแม้เพิ่งแจ้งเรื่องก่อนไป จึงใส่ทั้งชนิดและตัวเครื่อง
     signature: [
       verdict,
-      unreachable.map((p) => p.host).sort().join(','),
+      unreachable
+        .map((p) => p.host)
+        .sort()
+        .join(','),
       behindHosts.sort().join(','),
       stoppedReplicas.slice().sort().join(','),
     ].join('|'),

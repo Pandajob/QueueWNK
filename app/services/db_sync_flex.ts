@@ -130,7 +130,9 @@ function verdictBar(report: SyncReport) {
         height: '22px',
         flex: 0,
         justifyContent: 'center',
-        contents: [text(tone.icon, { color: '#ffffff', size: 'sm', align: 'center', weight: 'bold' })],
+        contents: [
+          text(tone.icon, { color: '#ffffff', size: 'sm', align: 'center', weight: 'bold' }),
+        ],
       },
       {
         type: 'box',
@@ -187,14 +189,17 @@ function hostCard(probe: HostProbe, report: SyncReport, commonGtid: string | nul
   ]
 
   if (!probe.ok) {
-    rows.push(text(probe.error ?? 'ไม่ทราบสาเหตุ', { size: 'xxs', color: C.bad, wrap: true, margin: 'sm' }))
+    rows.push(
+      text(probe.error ?? 'ไม่ทราบสาเหตุ', { size: 'xxs', color: C.bad, wrap: true, margin: 'sm' })
+    )
     return box(rows)
   }
 
   const badges: unknown[] = []
   if (rep) badges.push(chip(ROLE_LABELS[rep.role], C.main))
   if (probe.serverId) badges.push(chip(`id ${probe.serverId}`, C.soft))
-  if (probe.readOnly === false) badges.push(chip('เขียนได้', rep?.writableReplica ? C.warn : C.soft))
+  if (probe.readOnly === false)
+    badges.push(chip('เขียนได้', rep?.writableReplica ? C.warn : C.soft))
   if (rep?.slaveRunning === false) badges.push(chip('สายรับหยุด', C.bad, true))
 
   if (badges.length) {
@@ -264,7 +269,13 @@ function comparisonTable(report: SyncReport) {
     contents: [
       text('ข้อมูลวันนี้', { size: 'xxs', color: C.muted, flex: 5, weight: 'bold' }),
       ...up.map((probe) =>
-        text(shortName(probe), { size: 'xxs', color: C.main, align: 'end', flex: 3, weight: 'bold' })
+        text(shortName(probe), {
+          size: 'xxs',
+          color: C.main,
+          align: 'end',
+          flex: 3,
+          weight: 'bold',
+        })
       ),
     ],
   }
@@ -387,11 +398,7 @@ export function buildSyncFlex(report: SyncReport, accent: string = C.main): Line
 
   const common = sharedGtid(report)
   const head = (suffix = '') =>
-    header(
-      `🗄 เทียบเครื่องฐานข้อมูล${suffix}`,
-      `${stamp} · ${report.hosts.length} เครื่อง`,
-      accent
-    )
+    header(`🗄 เทียบเครื่องฐานข้อมูล${suffix}`, `${stamp} · ${report.hosts.length} เครื่อง`, accent)
 
   const notes = notesBox(report)
 
@@ -465,7 +472,11 @@ function packBubbles(bubbles: unknown[], altText: string): LineMessage[] {
 
   for (const item of bubbles) {
     const next = [...batch, item]
-    const wrapped = { type: 'flex', altText, contents: next.length === 1 ? next[0] : { type: 'carousel', contents: next } }
+    const wrapped = {
+      type: 'flex',
+      altText,
+      contents: next.length === 1 ? next[0] : { type: 'carousel', contents: next },
+    }
 
     if (batch.length && bytes(wrapped) > MAX_BYTES) {
       flush()

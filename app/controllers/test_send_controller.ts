@@ -16,7 +16,10 @@ import logger from '@adonisjs/core/services/logger'
 const testValidator = vine.compile(
   vine.object({
     caseKey: vine.enum(ALERT_CASE_KEYS),
-    cid: vine.string().trim().regex(/^\d{13}$/),
+    cid: vine
+      .string()
+      .trim()
+      .regex(/^\d{13}$/),
     name: vine.string().trim().maxLength(200).optional(),
     queue_no: vine.string().trim().maxLength(50).optional(),
     queue_waiting: vine.string().trim().maxLength(10).optional(),
@@ -69,7 +72,11 @@ export default class TestSendController {
       return response.ok({
         ok: false,
         checks: [
-          { label: 'ตั้งค่า MOPH Alert', status: 'fail', detail: 'ยังไม่ได้ตั้งค่า client-key / secret-key' },
+          {
+            label: 'ตั้งค่า MOPH Alert',
+            status: 'fail',
+            detail: 'ยังไม่ได้ตั้งค่า client-key / secret-key',
+          },
         ],
       })
     }

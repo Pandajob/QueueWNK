@@ -44,9 +44,7 @@ export default class HosxpDiscover extends BaseCommand {
     this.#say('|' + columns.map(() => '---').join('|') + '|')
     for (const row of rows) {
       this.#say(
-        '| ' +
-          columns.map((c) => String(row[c] ?? '').replace(/\|/g, '\\|')).join(' | ') +
-          ' |'
+        '| ' + columns.map((c) => String(row[c] ?? '').replace(/\|/g, '\\|')).join(' | ') + ' |'
       )
     }
     this.#say('')
@@ -132,9 +130,9 @@ export default class HosxpDiscover extends BaseCommand {
     this.#say('## 3. ตารางที่ชื่อเข้าข่าย')
     this.#say('')
 
-    const allTables = (
-      await client.select<Record<string, string>>(`SHOW TABLES`)
-    ).map((row) => Object.values(row)[0])
+    const allTables = (await client.select<Record<string, string>>(`SHOW TABLES`)).map(
+      (row) => Object.values(row)[0]
+    )
 
     const candidates = allTables
       .filter((name) => hints.some((h) => name.toLowerCase().includes(h)))

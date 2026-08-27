@@ -161,7 +161,7 @@ export default class NotifyGroupsController {
         lastTestOk: result.ok,
         lastTestError: result.ok
           ? null
-          : result.checks.find((c) => c.status === 'fail')?.detail ?? null,
+          : (result.checks.find((c) => c.status === 'fail')?.detail ?? null),
       })
       await stored.save()
     }
