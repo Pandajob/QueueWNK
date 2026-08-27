@@ -150,7 +150,7 @@ docker compose -f compose.prod.yml exec web node ace migration:run --force
 จำเป็นเมื่อต้องแก้โค้ด เช่นโรงพยาบาลที่ใช้ตารางคิวคนละตัว หรือจะส่ง PR กลับ
 
 ```bash
-git clone <URL ของ repo> queuewnk && cd queuewnk && cp .env.example .env
+git clone https://github.com/Pandajob/QueueWNK.git queuewnk && cd queuewnk && cp .env.example .env
 ```
 
 ```bash
