@@ -1,6 +1,7 @@
-# ใช้ตอนติดตั้งจริงที่โรงพยาบาล — ดึง image สำเร็จรูปมารัน ไม่ต้อง build ไม่ต้องมีซอร์ส
+# ใช้ตอนติดตั้งจริง — รัน image ที่ build ไว้แล้ว ไม่ต้อง build ไม่ต้องมีซอร์ส
 #
-#   docker compose -f compose.prod.yml up -d
+#   docker load -i queuewnk-<รุ่น>-images.tar.gz
+#   docker compose up -d
 #
 # ต่างจาก docker-compose.yml (ซึ่งใช้ตอนพัฒนา) สามอย่าง
 #   1. ใช้ image: แทน build: — ไม่ต้องมีโค้ดในเครื่อง ไม่ต้องลง Node
@@ -10,10 +11,10 @@
 name: queuewnk
 
 x-app: &app
-  # ⚠️ เปลี่ยน change-me เป็นชื่อบัญชี GitHub ที่เก็บ repo นี้ (ต้องเป็นตัวพิมพ์เล็กทั้งหมด
-  # docker ไม่ยอมรับตัวพิมพ์ใหญ่ในชื่อ image) หรือจะตั้ง QUEUEWNK_IMAGE ใน .env แทนก็ได้
-  # ยึดเลขรุ่นไว้ (ไม่ใช่ latest) จะได้รู้ว่าตอนนี้รันตัวไหนอยู่ และย้อนกลับได้เวลามีปัญหา
-  image: ${QUEUEWNK_IMAGE:-ghcr.io/change-me/queuewnk:0.1.0}
+  # ชื่อ image ที่ได้จาก docker load — ไม่ต้องแก้อะไรถ้าใช้ไฟล์ที่แจกมา
+  # ยึดเลขรุ่นไว้ (ไม่ใช่ latest) จะได้รู้ว่าตอนนี้รันตัวไหนอยู่ และย้อนรุ่นได้เวลามีปัญหา
+  # ถ้าจะดึงจาก registry แทน ตั้ง QUEUEWNK_IMAGE ใน .env ให้ชี้ไปที่นั่น
+  image: ${QUEUEWNK_IMAGE:-queuewnk:0.1.0}
   env_file: .env
   environment:
     NODE_ENV: production
@@ -34,7 +35,10 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     environment:
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?ต้องตั้ง DB_ROOT_PASSWORD ใน .env}
+      # สุ่มรหัส root ให้เอง ไม่ต้องคิดเอง และไม่ต้องเก็บไว้ที่ไหน
+      # แอปไม่ได้ใช้ root เลย ใช้ user queuewnk ซึ่งมีสิทธิ์เต็มบนฐานของตัวเองอยู่แล้ว
+      # จะเข้าไปดูข้อมูลให้ใช้ user นั้น: docker compose exec db mariadb -uqueuewnk -p
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
       MARIADB_DATABASE: ${DB_DATABASE:-queuewnk}
       MARIADB_USER: ${DB_USER:-queuewnk}
       MARIADB_PASSWORD: ${DB_PASSWORD:?ต้องตั้ง DB_PASSWORD ใน .env}

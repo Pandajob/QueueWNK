@@ -34,7 +34,7 @@ services:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-queuewnk-root}
       MARIADB_DATABASE: ${DB_DATABASE:-queuewnk}
       MARIADB_USER: ${DB_USER:-queuewnk}
-      MARIADB_PASSWORD: ${DB_PASSWORD:-queuewnk}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?ต้องตั้ง DB_PASSWORD ใน .env}
       TZ: Asia/Bangkok
     volumes:
       - dbdata:/var/lib/mysql

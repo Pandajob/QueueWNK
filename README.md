@@ -30,45 +30,43 @@
 > 📘 **เพิ่งเคยติดตั้งครั้งแรก อ่าน [คู่มือติดตั้ง](docs/install.md) แทน**
 > มีตั้งแต่ของที่ต้องขอล่วงหน้า สเปกเครื่อง ลำดับการตั้งค่า วิธีเปิดใช้จริงแบบไม่ให้
 > ผู้ป่วยได้รับข้อความผิด และตารางแก้ปัญหาที่เจอบ่อย
-> หัวข้อข้างล่างนี้เป็นคำสั่งล้วน ๆ สำหรับคนที่รู้อยู่แล้วว่ากำลังทำอะไร
+> หัวข้อนี้เป็นคำสั่งล้วน ๆ สำหรับคนที่รู้อยู่แล้วว่ากำลังทำอะไร
 
-เลือกทางใดทางหนึ่ง
+ต้องมี **Docker** อย่างเดียว ไม่ต้องลง Node ไม่ต้องลง MariaDB ไม่ต้องมีซอร์ส
 
-| | เหมาะกับ | ต้องมี |
-| --- | --- | --- |
-| **[แบบ ก — รัน image สำเร็จรูป](#แบบ-ก--รัน-image-สำเร็จรูป)** | โรงพยาบาลที่อยากใช้งาน ไม่ได้จะแก้โค้ด | Docker + เน็ต |
-| **[แบบ ค — โหลด image จากไฟล์](docs/install.md#แบบ-ค--โหลด-image-จากไฟล์-เครื่องออกเน็ตไม่ได้)** | **เครื่องที่ออกอินเทอร์เน็ตไม่ได้** | Docker + ไฟล์ `.tar.gz` |
-| **[แบบ ข — จากซอร์ส](#แบบ-ข--ติดตั้งจากซอร์ส)** | คนที่จะแก้โค้ดหรือส่ง PR กลับ | Docker + git |
+ใช้ไฟล์ 3 อย่าง — `queuewnk-<รุ่น>-images.tar.gz` · [`compose.prod.yml`](compose.prod.yml) · [`.env.example`](.env.example)
+เอามาไว้โฟลเดอร์เดียวกัน
 
-**ไม่แน่ใจให้เลือกแบบ ก** ย้ายไปแบบ ข ทีหลังได้ตลอดโดยไม่ต้องติดตั้งใหม่ (ฐานข้อมูลอยู่ใน volume แยก)
+### 1. โหลด image เข้า Docker
 
-> ⚠️ **ข้อยกเว้นที่ต้องรู้ก่อนเลือก** — ระบบอ่านคิวจากตาราง `ovst_queue_server` แบบตายตัว
-> โรงพยาบาลที่ไม่ได้ใช้ HOSxP Queue Server **ต้องแก้ SQL เอง จึงต้องใช้แบบ ข**
-> ตรวจก่อนได้ด้วยขั้นตอนใน [สำรวจฐานของตัวเองก่อน](#5-สำรวจฐานของโรงพยาบาลตัวเองก่อน)
+```bash
+docker load -i queuewnk-v0.1.0-images.tar.gz
+```
 
----
+ต้องขึ้นสองบรรทัด — `Loaded image: queuewnk:0.1.0` และ `Loaded image: mariadb:12`
 
-## แบบ ก — รัน image สำเร็จรูป
+### 2. ตั้งค่า
 
-ไม่ต้องมีซอร์ส ไม่ต้อง build ไม่ต้องลง Node ใช้แค่สองไฟล์
-
-โหลด [`compose.prod.yml`](compose.prod.yml) กับ [`.env.example`](.env.example) จากหน้า repo
-มาไว้ในโฟลเดอร์เดียวกัน แล้ว
+กรอกแค่ 2 บรรทัดบนสุดของ `.env` ที่เหลือปล่อยไว้ **แต่ต้องเรียงตามนี้**
 
 ```bash
 cp .env.example .env
 ```
 
-แก้ `.env` — ตั้ง `DB_PASSWORD` กับ `DB_ROOT_PASSWORD` เป็นรหัสของตัวเอง
-(สแตกจะไม่ยอมสตาร์ตถ้ายังเว้นไว้) แล้วสร้าง `APP_KEY`
+1. กรอก `DB_PASSWORD=` ก่อน — ตั้งเองอะไรก็ได้ ระบบใช้เอง ไม่ต้องจำ
+   **ข้ามไม่ได้** เพราะ Docker อ่านไฟล์ตั้งค่าทั้งไฟล์ก่อนเริ่มทำงาน
+   คำสั่งข้อถัดไปจะไม่ยอมรันถ้าบรรทัดนี้ยังว่าง
+2. รัน `generate:key` แล้วเอาค่าที่พิมพ์ออกมาใส่ `APP_KEY=`
 
 ```bash
-docker compose -f compose.prod.yml run --rm web node ace generate:key
+docker compose -f compose.prod.yml run --rm --no-deps web node ace generate:key
 ```
 
-คำสั่งนี้**พิมพ์ค่าออกมาเฉย ๆ ต้องคัดลอกไปใส่ `APP_KEY=` ใน `.env` เอง**
-(ต่างจากแบบ ข ที่เขียนให้อัตโนมัติ เพราะ image ไม่มี `.env` อยู่ข้างในให้เขียน)
-— อ่านคำเตือนเรื่องกุญแจนี้ใน[หัวข้อถัดไป](#2-สร้าง-app_key)ด้วย
+> ⚠️ **`APP_KEY` ตั้งครั้งเดียวแล้วห้ามเปลี่ยน** เป็นกุญแจที่ใช้เข้ารหัสรหัสผ่าน HOSxP
+> และ secret ของ MOPH ก่อนเก็บลงฐาน เปลี่ยนเมื่อไรค่าเดิมถอดไม่ออก ต้องกรอกใหม่ทุกหน้า
+> **เก็บสำรองไว้คู่กับ backup ฐานข้อมูล** ไม่งั้น restore มาแล้วใช้ไม่ได้
+
+### 3. เปิดระบบ
 
 ```bash
 docker compose -f compose.prod.yml up -d
@@ -82,70 +80,7 @@ docker compose -f compose.prod.yml exec web node ace migration:run --force
 docker compose -f compose.prod.yml exec web node ace admin:create you@hospital.go.th 'รหัสผ่านอย่างน้อย8ตัว' 'ชื่อ นามสกุล'
 ```
 
-เปิด http://localhost:3333 แล้วไปทำ[ขั้นที่ 4](#4-สร้าง-user-อ่านอย่างเดียวบน-hosxp)เป็นต้นไป
-
-### อัปเดต (แบบ ก)
-
-```bash
-docker compose -f compose.prod.yml pull && docker compose -f compose.prod.yml up -d
-```
-
-```bash
-docker compose -f compose.prod.yml exec web node ace migration:run --force
-```
-
-จบ ไม่มีขั้นตอน restart ให้ลืม เพราะ `up -d` สร้าง container ใหม่จาก image ใหม่ให้เอง
-
-> เปลี่ยนเลขรุ่นที่จะใช้ได้ที่ `QUEUEWNK_IMAGE` ใน `.env`
-> **ยึดเลขรุ่นไว้ อย่าใช้ `latest`** จะได้รู้ว่าตอนนี้รันตัวไหน และย้อนกลับได้เวลามีปัญหา
-> ดูว่ารุ่นใหม่เปลี่ยนอะไรที่ [CHANGELOG.md](CHANGELOG.md) ก่อนอัปเดตเสมอ
-
----
-
-## แบบ ข — ติดตั้งจากซอร์ส
-
-ต้องมี **Docker** กับ **git** ไม่ต้องลง Node หรือ MariaDB ลงเครื่อง
-
-### 1. ดึงโค้ดและตั้งค่าพื้นฐาน
-
-```bash
-git clone <URL ของ repo> queuewnk && cd queuewnk
-```
-
-```bash
-cp .env.example .env
-```
-
-### 2. สร้าง APP_KEY
-
-**ข้ามขั้นนี้ไม่ได้** — `APP_KEY` คือกุญแจที่ใช้เข้ารหัสรหัสผ่าน HOSxP และ secret ของ MOPH
-ก่อนเก็บลงฐาน ถ้าเว้นว่างไว้แอปจะไม่ยอมสตาร์ต
-
-```bash
-docker compose run --rm web node ace generate:key
-```
-
-**เขียนลง `.env` ให้อัตโนมัติ** ไม่ต้องคัดลอกเอง ขึ้นว่า `DONE: add APP_KEY to .env`
-
-> ⚠️ **ตั้งครั้งเดียวแล้วห้ามเปลี่ยน** และห้ามใช้ค่าเดียวกับโรงพยาบาลอื่น
-> เปลี่ยนเมื่อไรค่าที่เข้ารหัสไว้เดิมจะถอดไม่ออก ต้องไปกรอกรหัสผ่านใหม่ทุกหน้า
-> เก็บสำรองไว้คู่กับ backup ฐานข้อมูล ไม่งั้น restore มาแล้วใช้ไม่ได้
-
-### 3. เปิดระบบ
-
-```bash
-docker compose up -d
-```
-
-```bash
-docker compose exec web node ace migration:run --force
-```
-
-```bash
-docker compose exec web node ace admin:create you@hospital.go.th 'รหัสผ่านอย่างน้อย8ตัว' 'ชื่อ นามสกุล'
-```
-
-เปิด http://localhost:3333
+เปิด http://localhost:3333 แล้วล็อกอิน
 
 ### 4. สร้าง user อ่านอย่างเดียวบน HOSxP
 
@@ -163,14 +98,12 @@ CREATE USER 'queuewnk_ro'@'%' IDENTIFIED BY 'ตั้งรหัสเอง';
 **อย่าข้ามขั้นนี้** ระบบนี้พัฒนากับ HOSxP ของโรงพยาบาลเดียว สิ่งที่จริงที่นั่นอาจไม่จริงที่อื่น
 
 ```bash
-docker compose exec web node ace hosxp:discover
+docker compose -f compose.prod.yml exec web node ace hosxp:discover
 ```
 
 ```bash
-docker compose exec web node ace hosxp:probe-queue
+docker compose -f compose.prod.yml exec web node ace hosxp:probe-queue
 ```
-
-สิ่งที่ต้องดูให้ออกก่อนเปิดใช้จริง
 
 | ตรวจอะไร | ทำไม |
 | --- | --- |
@@ -179,68 +112,86 @@ docker compose exec web node ace hosxp:probe-queue
 | **นาฬิกาต่างจาก DB กี่วินาที** | เกิน 60 วินาทีการตรวจจับด้วยเวลาจะพลาด |
 | **`cid` ครบ 13 หลักกี่ %** | ผู้ป่วยที่ไม่มีเลขบัตรจะส่งแจ้งเตือนไม่ได้เลย |
 
-ถ้าตารางคิวไม่ตรงกัน ต้องแก้ SQL ใน [queue_poller.ts](app/services/queue_poller.ts) เอง
-ตอนนี้ยังไม่ได้ทำให้เลือกได้จากหน้าเว็บ
+> ⚠️ **ถ้าตารางคิวไม่ตรงกัน ต้องแก้ SQL ใน [queue_poller.ts](app/services/queue_poller.ts) เอง**
+> ซึ่งทำใน image ไม่ได้ ต้องไปใช้[วิธีติดตั้งจากซอร์ส](#ติดตั้งจากซอร์ส-สำหรับคนที่จะแก้โค้ด)แทน
+> ตอนนี้ยังไม่ได้ทำให้เลือกตารางจากหน้าเว็บได้
 
 ### 6. ค่อยเปิดทีละห้อง
 
 ตั้งต้น dry run เปิดอยู่และปิดทุกห้อง เปิดทีละห้องแล้วดูใน `/log` ว่าเลขคิวตรงกับบัตรคิวจริงไหม
 ก่อนปิด dry run
 
-## สร้างไฟล์อิมเมจสำหรับเครื่องที่ออกเน็ตไม่ได้
+## อัปเดต
 
-สำหรับผู้ดูแล repo ที่ต้องส่งของให้โรงพยาบาลซึ่งเครื่องต่ออินเทอร์เน็ตไม่ได้
+```bash
+docker load -i queuewnk-v0.1.1-images.tar.gz
+```
+
+แก้เลขรุ่นที่ `QUEUEWNK_IMAGE` ใน `.env` ให้ตรงกับรุ่นใหม่ (ถ้าไม่มีบรรทัดนี้ให้เพิ่มเข้าไป) แล้ว
+
+```bash
+docker compose -f compose.prod.yml up -d
+```
+
+```bash
+docker compose -f compose.prod.yml exec web node ace migration:run --force
+```
+
+จบ **ไม่มีขั้นตอน restart ให้ลืม** เพราะ `up -d` สร้าง container ใหม่จาก image ใหม่ให้เอง
+และ `.env` กับฐานข้อมูลไม่ถูกแตะ ค่าที่ตั้งไว้ในหน้าเว็บอยู่ครบ
+
+**image รุ่นเก่ายังอยู่ในเครื่อง** ย้อนกลับได้ทันทีถ้ารุ่นใหม่มีปัญหา แค่แก้เลขรุ่นใน `.env`
+กลับแล้ว `up -d` ใหม่ — แต่ migration ไม่ย้อนตามให้ **อ่าน [CHANGELOG.md](CHANGELOG.md) ก่อนอัปเดตเสมอ**
+
+---
+
+## ติดตั้งจากซอร์ส (สำหรับคนที่จะแก้โค้ด)
+
+จำเป็นเมื่อต้องแก้โค้ด เช่นโรงพยาบาลที่ใช้ตารางคิวคนละตัว หรือจะส่ง PR กลับ
+
+```bash
+git clone <URL ของ repo> queuewnk && cd queuewnk && cp .env.example .env
+```
+
+```bash
+docker compose run --rm --no-deps web node ace generate:key
+```
+
+ตัวนี้**เขียน `APP_KEY` ลง `.env` ให้อัตโนมัติ** (ต่างจากทางข้างบนที่ image ไม่มี `.env`
+อยู่ข้างในให้เขียน จึงพิมพ์ออกมาให้คัดลอกเอง) เหลือกรอก `DB_PASSWORD=` อย่างเดียว แล้ว
+
+```bash
+docker compose up -d && docker compose exec web node ace migration:run --force
+```
+
+จากนั้นทำขั้นที่ 3–6 ข้างบนต่อ โดยตัด `-f compose.prod.yml` ออกจากทุกคำสั่ง
+
+**อัปเดต** — `git pull` แล้ว `docker compose build && docker compose up -d` ตามด้วย
+`migration:run --force` และ **`docker compose restart web worker notify`**
+
+> ⚠️ **ต้อง `restart` ทุกครั้งหลัง `git pull`** โค้ดถูก mount เป็น bind mount และบน Windows
+> สัญญาณไฟล์เปลี่ยนไม่ทะลุเข้าคอนเทนเนอร์ ตัวรีโหลดอัตโนมัติจึงไม่ทำงาน ที่หลอกกว่านั้นคือ
+> ไฟล์ `.edge` ถูกอ่านใหม่ทุกคำขออยู่แล้ว **หน้าเว็บจะดูเหมือนอัปเดตแล้วทั้งที่โค้ดยังเป็นตัวเก่า**
+> อาการคลาสสิกคือกดบันทึกแล้วค่ากลับมาเป็นเดิม
+
+## สร้างไฟล์แจก (สำหรับผู้ดูแล repo)
 
 ```bash
 docker build --target production -t queuewnk:0.1.0 .
 ```
 
 ```bash
-docker save queuewnk:0.1.0 mariadb:12 | gzip -6 > queuewnk-v0.1.0-offline-images.tar.gz
+docker save queuewnk:0.1.0 mariadb:12 | gzip -6 > queuewnk-v0.1.0-images.tar.gz
 ```
 
-**ต้องใส่ `mariadb:12` ไปด้วยเสมอ** ไม่งั้นปลายทางจะ `up -d` แล้วค้างรอดาวน์โหลด
-ฐานข้อมูลจากอินเทอร์เน็ตที่ต่อไม่ได้ ได้ไฟล์ราว 181 MB
-
-ส่งไปสามไฟล์ — ตัว `.tar.gz` · `compose.prod.yml` · `.env.example`
-ขั้นตอนฝั่งปลายทางอยู่ใน [คู่มือติดตั้ง แบบ ค](docs/install.md#แบบ-ค--โหลด-image-จากไฟล์-เครื่องออกเน็ตไม่ได้)
+**ต้องใส่ `mariadb:12` ไปด้วยเสมอ** ไม่งั้นปลายทาง `up -d` แล้วค้างรอดาวน์โหลดฐานข้อมูล
+ได้ไฟล์ราว 181 MB ส่งไปพร้อม `compose.prod.yml` และ `.env.example`
 
 ตรวจว่าไฟล์ใช้ได้จริงก่อนส่ง โดยลบ image ออกจากเครื่องแล้วโหลดกลับ
 
 ```bash
-docker rmi queuewnk:0.1.0 && docker load -i queuewnk-v0.1.0-offline-images.tar.gz
+docker rmi queuewnk:0.1.0 && docker load -i queuewnk-v0.1.0-images.tar.gz
 ```
-
-## อัปเดต (แบบ ข)
-
-```bash
-git pull
-```
-
-```bash
-docker compose build && docker compose up -d
-```
-
-```bash
-docker compose exec web node ace migration:run --force
-```
-
-```bash
-docker compose restart web worker notify
-```
-
-`docker compose build` จำเป็นเฉพาะตอน `package.json` หรือ `Dockerfile` เปลี่ยน แต่รันทุกครั้ง
-ก็ไม่เสียหาย มันข้ามให้เองถ้าไม่มีอะไรเปลี่ยน
-
-**ต้อง `restart` ทุกครั้งหลัง pull** — โค้ดถูก mount เข้าคอนเทนเนอร์เป็น bind mount
-และบน Windows กับ Docker Desktop สัญญาณไฟล์เปลี่ยนไม่ทะลุเข้าไป ตัวรีโหลดอัตโนมัติ
-จึงไม่ทำงาน ที่หลอกกว่านั้นคือไฟล์ `.edge` ถูกอ่านใหม่ทุกคำขออยู่แล้ว **หน้าเว็บจะดูเหมือน
-อัปเดตแล้วทั้งที่โค้ดเบื้องหลังยังเป็นตัวเก่า**
-
-`.env` และฐานข้อมูลไม่ถูกแตะจากการ pull — ค่าที่ตั้งไว้ในหน้าเว็บอยู่ครบ
-
-> ดูสิ่งที่เปลี่ยนในแต่ละรุ่นได้ที่ [CHANGELOG.md](CHANGELOG.md) รุ่นไหนที่ต้องทำอะไรเพิ่ม
-> นอกจากขั้นตอนข้างบนจะเขียนกำกับไว้
 
 ## หน้าเว็บ
 
