@@ -185,7 +185,17 @@ docker save queuewnk:0.1.0 mariadb:12 | gzip -6 > queuewnk-v0.1.0-images.tar.gz
 ```
 
 **ต้องใส่ `mariadb:12` ไปด้วยเสมอ** ไม่งั้นปลายทาง `up -d` แล้วค้างรอดาวน์โหลดฐานข้อมูล
-ได้ไฟล์ราว 181 MB ส่งไปพร้อม `compose.prod.yml` และ `.env.example`
+ได้ไฟล์ราว 181 MB
+
+ส่งคู่กับชุดตั้งค่าเล็ก ๆ ที่รวม `compose.prod.yml` · `.env.example` · `install.md`
+และไฟล์ `READ-ME-FIRST.txt` ฉบับย่อ 5 ขั้นตอน
+
+```bash
+python -c "import zipfile,os; z=zipfile.ZipFile('queuewnk-v0.1.0-setup.zip','w',zipfile.ZIP_DEFLATED); [z.write(f,'queuewnk-setup/'+os.path.basename(f)) for f in ['compose.prod.yml','.env.example','docs/install.md']]; z.close()"
+```
+
+**อย่าใช้ `Compress-Archive` ของ PowerShell** มันเขียนตัวคั่นพาธเป็น backslash
+ซึ่งผิดมาตรฐาน zip แตกบน Linux หรือ macOS แล้วขึ้น warning และได้โครงไฟล์เพี้ยน
 
 ตรวจว่าไฟล์ใช้ได้จริงก่อนส่ง โดยลบ image ออกจากเครื่องแล้วโหลดกลับ
 
