@@ -1,0 +1,70 @@
+name: queuewnk
+
+x-app: &app
+  build:
+    context: .
+    target: dev
+  env_file: .env
+  environment:
+    TZ: Asia/Bangkok
+    DB_HOST: db
+    DB_PORT: "3306"
+  volumes:
+    - .:/app
+    - node_modules:/app/node_modules
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  # ข้อมูลของแอปเราเอง — watermark, คิวการส่ง, log, ค่า config ที่กรอกผ่านหน้าเว็บ
+  # ไม่เกี่ยวกับ HOSxP เลย HOSxP ต่อออกไปข้างนอกแบบ read-only เท่านั้น
+  # ใช้ MariaDB ให้ตรงกับที่โรงพยาบาลใช้อยู่ (production เป็น 12.3.2)
+  # ทีม IT จะได้ดูแล engine เดียว ใช้ขั้นตอน backup/restore/monitoring ชุดเดิม
+  db:
+    image: mariadb:12
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_ROOT_PASSWORD: queuewnk-root
+      MARIADB_DATABASE: queuewnk
+      MARIADB_USER: queuewnk
+      MARIADB_PASSWORD: queuewnk
+      TZ: Asia/Bangkok
+    volumes:
+      - dbdata:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3307:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # หน้าเว็บ admin — ตั้งค่า HOSxP / MOPH, ดู log, กด retry
+  web:
+    <<: *app
+    command: npm run dev
+    ports:
+      - "3333:3333"
+
+  # poller — อ่าน HOSxP แล้วส่งแจ้งเตือน
+  # ต้อง 1 instance เท่านั้น ไม่งั้นส่งซ้ำ (มี GET_LOCK กันอีกชั้นในโค้ด)
+  worker:
+    <<: *app
+    command: node ace queue:watch
+    ports: []
+
+  # worker ของระบบ MOPH Notify — ตารางเวลาส่งซ้ำ และเฝ้าระวังเคส 506
+  # แยก process จาก worker คิว เพราะ query ที่ผู้ดูแลเขียนเองไม่ควรถ่วงงานคิว
+  notify:
+    <<: *app
+    command: node ace notify:watch
+    ports: []
+
+volumes:
+  dbdata:
+  node_modules:

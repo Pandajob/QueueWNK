@@ -1,0 +1,63 @@
+@component('layouts/main', { title: 'เทมเพลตข้อความ', active: 'nt-templates' })
+
+  <div class="template-head">
+    <div>
+      <h1>เทมเพลตข้อความ</h1>
+      <p class="subtitle">ข้อความที่จะเข้ากลุ่ม LINE ผูกกับชุดข้อมูลได้</p>
+    </div>
+    <a class="button-link" href="{{ route('notify.templates.create') }}">เพิ่มเทมเพลต</a>
+  </div>
+
+  <div class="panel">
+    @if (templates.length)
+      <table class="listing">
+        <thead>
+          <tr>
+            <th>ชื่อ</th>
+            <th>ชนิด</th>
+            <th>ชื่อย่อ</th>
+            <th>ชุดข้อมูล</th>
+            <th>สถานะ</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @each (tpl in templates)
+            <tr>
+              <td>
+                <strong>{{ tpl.name }}</strong>
+                @if (tpl.messageType === 'flex')
+                  <div class="hint">{{ tpl.blocks.length }} บล็อก · {{ tpl.altText ?? '—' }}</div>
+                @else
+                  <div class="hint">{{ tpl.body.slice(0, 90) }}{{ tpl.body.length > 90 ? '…' : '' }}</div>
+                @end
+              </td>
+              <td class="nowrap">
+                @if (tpl.messageType === 'flex')
+                  <span class="tag ok">การ์ด Flex</span>
+                @else
+                  <span class="tag muted">ข้อความ</span>
+                @end
+              </td>
+              <td><code>{{ tpl.key }}</code></td>
+              <td>{{ tpl.dataset ? tpl.dataset.name : '—' }}</td>
+              <td>
+                @if (tpl.isEnabled)
+                  <span class="tag sent">เปิด</span>
+                @else
+                  <span class="tag muted">ปิด</span>
+                @end
+              </td>
+              <td class="right nowrap">
+                <a href="{{ route('notify.templates.send.form', { id: tpl.id }) }}">ส่งเดี๋ยวนี้</a>
+                <a href="{{ route('notify.templates.edit', { id: tpl.id }) }}">แก้ไข</a>
+              </td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+    @else
+      <p class="empty-state">ยังไม่มีเทมเพลต</p>
+    @end
+  </div>
+@end

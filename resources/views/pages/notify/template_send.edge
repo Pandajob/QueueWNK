@@ -1,0 +1,53 @@
+@component('layouts/main', { title: 'ส่งเดี๋ยวนี้', active: 'nt-templates' })
+
+  <p class="breadcrumb"><a href="{{ route('notify.templates') }}">← เทมเพลตข้อความ</a></p>
+
+  <h1>ส่ง “{{ item.name }}” เดี๋ยวนี้</h1>
+  <p class="subtitle">เลือกกลุ่มที่จะส่งเข้าไป — ข้อความจะถึงทุกคนในกลุ่มทันที</p>
+
+  <form method="POST" action="{{ route('notify.templates.send', { id: item.id }) }}"
+        onsubmit="return confirm('ส่งข้อความเข้ากลุ่มที่เลือกทันที ยืนยัน?')">
+    {{ csrfField() }}
+    <input type="hidden" name="templateId" value="{{ item.id }}" />
+
+    <div class="panel">
+      <h2 class="panel-title">กลุ่มปลายทาง</h2>
+
+      @if (groups.length)
+        <div class="check-grid">
+          @each (group in groups)
+            <label class="checkbox">
+              <input type="checkbox" name="groups[]" value="{{ group.id }}" />
+              {{ group.name }}
+              @if (item.messageType === 'flex' && !group.supportsFlex)
+                <span class="tag muted">จะส่งเป็นข้อความธรรมดา</span>
+              @end
+            </label>
+          @end
+        </div>
+      @else
+        <p class="hint">
+          ยังไม่มีกลุ่มที่เปิดใช้งาน — <a href="{{ route('notify.groups.create') }}">เพิ่มกลุ่มก่อน</a>
+        </p>
+      @end
+
+      <div class="actions">
+        <button type="submit" class="danger" {{ groups.length ? '' : 'disabled' }}>ส่งเดี๋ยวนี้</button>
+        <a class="button-link secondary-link"
+           href="{{ route('notify.templates.edit', { id: item.id }) }}">กลับไปแก้ข้อความ</a>
+      </div>
+
+      <p class="hint" style="margin-top: 10px">
+        ระบบจะรันชุดข้อมูลใหม่ตอนกดส่ง ข้อความจึงเป็นค่าล่าสุด ณ ตอนนั้น
+        ทุกครั้งที่ส่งจะถูกบันทึกไว้ในประวัติการส่งและประวัติการแก้ไข
+      </p>
+    </div>
+  </form>
+
+  <div class="panel">
+    <h2 class="panel-title">ข้อความต้นฉบับ (ยังไม่แทนค่า)</h2>
+    <div class="payload-box">
+      <pre>{{ item.body }}</pre>
+    </div>
+  </div>
+@end

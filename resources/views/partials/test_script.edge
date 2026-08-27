@@ -1,0 +1,76 @@
+<script>
+  // ปุ่มทดสอบส่งค่าที่กำลังกรอกอยู่ในฟอร์มไปตรวจ โดยยังไม่บันทึก
+  // ผู้ใช้จะได้ลองเปลี่ยน charset หรือรหัสผ่านกี่รอบก็ได้ก่อนเซฟทับของเดิม
+  ;(function () {
+    const output = document.getElementById('checks')
+
+    const ICONS = { ok: '✓', warn: '!', fail: '✕' }
+
+    function render(checks) {
+      output.replaceChildren()
+
+      for (const check of checks) {
+        const row = document.createElement('div')
+        row.className = 'check ' + (check.status || 'warn')
+
+        const icon = document.createElement('span')
+        icon.className = 'icon'
+        icon.textContent = ICONS[check.status] || '?'
+
+        const body = document.createElement('div')
+        body.className = 'body'
+
+        const label = document.createElement('strong')
+        label.textContent = check.label
+
+        const detail = document.createElement('span')
+        detail.textContent = check.detail
+
+        body.append(label, detail)
+        row.append(icon, body)
+        output.append(row)
+      }
+    }
+
+    // หน้าหนึ่งมีปุ่มทดสอบได้หลายปุ่ม เช่นหน้า MOPH Notify ที่แยก
+    // "ตรวจ key แบบไม่ส่ง" กับ "ส่งจริงเข้ากลุ่ม" ออกจากกัน
+    for (const button of document.querySelectorAll('button[data-url]')) {
+      const form = button.closest('form')
+
+      button.addEventListener('click', async function () {
+        // ปุ่มที่ทำให้เกิดผลข้างนอก (เช่นข้อความโผล่ในกลุ่มแชท) ต้องถามก่อน
+        if (button.dataset.confirm && !window.confirm(button.dataset.confirm)) return
+
+        button.disabled = true
+        const original = button.textContent
+        button.textContent = 'กำลังทดสอบ…'
+        render([{ label: 'กำลังทดสอบ', status: 'warn', detail: 'รอสักครู่' }])
+
+        try {
+          const response = await fetch(button.dataset.url, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { Accept: 'application/json' },
+          })
+
+          if (!response.ok) {
+            const body = await response.json().catch(() => null)
+            const messages = body && body.errors
+              ? body.errors.map((e) => `${e.field}: ${e.message}`).join(' · ')
+              : `HTTP ${response.status}`
+            render([{ label: 'ทดสอบไม่สำเร็จ', status: 'fail', detail: messages }])
+            return
+          }
+
+          const result = await response.json()
+          render(result.checks)
+        } catch (error) {
+          render([{ label: 'ทดสอบไม่สำเร็จ', status: 'fail', detail: String(error) }])
+        } finally {
+          button.disabled = false
+          button.textContent = original
+        }
+      })
+    }
+  })()
+</script>

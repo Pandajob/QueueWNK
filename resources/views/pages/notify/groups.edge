@@ -1,0 +1,77 @@
+@component('layouts/main', { title: 'กลุ่ม Line', active: 'nt-groups' })
+
+  <div class="template-head">
+    <div>
+      <h1>กลุ่ม Line</h1>
+      <p class="subtitle">ปลายทางทั้งหมดที่ระบบส่งข้อความเข้าไปได้</p>
+    </div>
+    <a class="button-link" href="{{ route('notify.groups.create') }}">เพิ่มกลุ่ม</a>
+  </div>
+
+  <div class="panel">
+    @if (groups.length)
+      <table class="listing">
+        <thead>
+          <tr>
+            <th>ชื่อกลุ่ม</th>
+            <th>Hcode</th>
+            <th>สถานะ</th>
+            <th>ทดสอบล่าสุด</th>
+            <th class="right">ส่งไปแล้ว</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @each (group in groups)
+            <tr>
+              <td>
+                <strong>{{ group.name }}</strong>
+                @if (group.note)
+                  <div class="hint">{{ group.note }}</div>
+                @end
+              </td>
+              <td class="nowrap">{{ group.hcode ?? '—' }}</td>
+              <td>
+                @if (!group.isActive)
+                  <span class="tag muted">ปิดใช้งาน</span>
+                @elseif (group.lastTestOk)
+                  <span class="tag sent">พร้อมใช้</span>
+                @else
+                  <span class="tag warn">ยังไม่ได้ทดสอบ</span>
+                @end
+                @if (!group.supportsFlex)
+                  <span class="tag muted" title="การ์ด Flex จะถูกส่งเป็นข้อความธรรมดาแทน">ข้อความล้วน</span>
+                @end
+              </td>
+              <td class="nowrap">
+                @if (group.lastTestedAt)
+                  {{ group.lastTestedAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm') }}
+                @else
+                  —
+                @end
+              </td>
+              <td class="right">{{ sends[group.id] ?? 0 }}</td>
+              <td class="right nowrap">
+                <a href="{{ route('notify.groups.edit', { id: group.id }) }}">แก้ไข</a>
+              </td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+    @else
+      <p class="empty-state">
+        ยังไม่มีกลุ่ม — กด “เพิ่มกลุ่ม” เพื่อใส่ Client_ID และ Secret ที่ได้จาก CMS MOPH Notify
+      </p>
+    @end
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">ขั้นตอนเปิดใช้งานฝั่ง MOPH</h2>
+    <ol class="hint" style="padding-left: 20px; line-height: 2">
+      <li>สร้างกลุ่มใน LINE ตั้งชื่อลงท้ายด้วย <code>HC</code> ตามด้วยรหัสหน่วยบริการ 5 หลัก</li>
+      <li>เชิญ “LINE หมอพร้อม” เข้ากลุ่ม (ต้องเปลี่ยนชื่อกลุ่มให้เรียบร้อยก่อนเชิญ)</li>
+      <li>Admin หน่วยบริการเข้า CMS MOPH Notify เมนู “กลุ่มบอท” แล้วกดอนุมัติ</li>
+      <li>เปิดดู API Key ของกลุ่ม คัดลอก Client_ID กับ Secret มาสร้างกลุ่มที่นี่</li>
+    </ol>
+  </div>
+@end

@@ -1,0 +1,64 @@
+@component('layouts/main', { title: 'ตั้งค่า MOPH Alert', active: 'moph' })
+  <h1>MOPH Alert</h1>
+  <p class="subtitle">
+    Client ID และ Secret ได้จาก CMS MOPH ALERTING เมนู “จัดการ Token”
+  </p>
+
+  <form method="POST" action="{{ route('settings.moph.save') }}" id="moph-form">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <div class="field">
+        <label for="label">ชื่อเรียก</label>
+        <input type="text" id="label" name="label"
+               value="{{ old('label', credential?.label ?? 'MOPH Alert') }}" required />
+      </div>
+
+      <div class="field">
+        <label for="baseUrl">Base URL</label>
+        <input type="url" id="baseUrl" name="baseUrl"
+               value="{{ old('baseUrl', credential?.baseUrl ?? 'https://morpromt2c.moph.go.th') }}" required />
+      </div>
+
+      <div class="field">
+        <label for="clientKey">Client ID <span class="hint">(ส่งเป็น header <code>client-key</code>)</span></label>
+        <input type="password" id="clientKey" name="clientKey"
+               placeholder="{{ credential?.clientKey ? '••••••••  (เว้นว่าง = ไม่เปลี่ยน)' : '' }}"
+               autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <label for="secretKey">Secret <span class="hint">(ส่งเป็น header <code>secret-key</code>)</span></label>
+        <input type="password" id="secretKey" name="secretKey"
+               placeholder="{{ credential?.secretKey ? '••••••••  (เว้นว่าง = ไม่เปลี่ยน)' : '' }}"
+               autocomplete="new-password" />
+        <p class="hint">เก็บแบบเข้ารหัสด้วย APP_KEY และไม่แสดงกลับมาอีก</p>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+        <button type="button" class="secondary" id="test-btn"
+                data-url="{{ route('settings.moph.test') }}">
+          ทดสอบ key
+        </button>
+      </div>
+
+      <p class="hint" style="margin-top: 10px">
+        การทดสอบจะยิงคำขอด้วยเลขบัตรสมมติ <code>0000000000000</code>
+        เพื่อดูว่าปลายทางปฏิเสธเพราะ key ผิด หรือปฏิเสธเพราะหาเลขบัตรไม่เจอ
+        จึงตรวจ key ได้โดยไม่มีข้อความส่งถึงผู้ป่วยจริง
+      </p>
+
+      @if (credential?.lastTestedAt)
+        <p class="status-line">
+          ทดสอบล่าสุด {{ credential.lastTestedAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm') }} —
+          {{ credential.lastTestOk ? 'ผ่าน' : 'ไม่ผ่าน' }}
+        </p>
+      @end
+
+      <div class="checks" id="checks"></div>
+    </div>
+  </form>
+
+  @include('partials/test_script')
+@end

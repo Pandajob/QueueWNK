@@ -1,0 +1,90 @@
+@component('layouts/main', { title: 'ตารางเวลา', active: 'nt-schedules' })
+
+  <div class="template-head">
+    <div>
+      <h1>ตารางเวลา</h1>
+      <p class="subtitle">รอบส่งซ้ำอัตโนมัติ — worker ตรวจทุกนาที</p>
+    </div>
+    <a class="button-link" href="{{ route('notify.schedules.create') }}">เพิ่มรอบส่ง</a>
+  </div>
+
+  <div class="panel">
+    @if (schedules.length)
+      <table class="listing">
+        <thead>
+          <tr>
+            <th>ชื่อ</th>
+            <th>รอบ</th>
+            <th>เทมเพลต</th>
+            <th>กลุ่ม</th>
+            <th>ส่งล่าสุด</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @each (schedule in schedules)
+            <tr>
+              <td>
+                <strong>{{ schedule.name }}</strong>
+                @if (!schedule.isEnabled)
+                  <span class="tag muted">ปิดอยู่</span>
+                @elseif (schedule.isDue(now))
+                  <span class="tag warn">ถึงรอบแล้ว รอ worker</span>
+                @end
+                @if (schedule.lastError)
+                  <div class="hint danger">{{ schedule.lastError }}</div>
+                @end
+              </td>
+              <td class="nowrap">{{ schedule.scheduleLabel }}</td>
+              <td>{{ schedule.template ? schedule.template.name : '—' }}</td>
+              <td>
+                @if (schedule.groups.length)
+                  {{ schedule.groups.map((g) => g.name).join(', ') }}
+                @else
+                  <span class="tag fail">ยังไม่เลือกกลุ่ม</span>
+                @end
+              </td>
+              <td class="nowrap">
+                @if (schedule.lastRunAt)
+                  {{ schedule.lastRunAt.setZone('Asia/Bangkok').toFormat('dd/MM HH:mm') }}
+                  <span class="tag {{ schedule.lastStatus === 'sent' ? 'sent' : (schedule.lastStatus === 'failed' ? 'failed' : 'warn') }}">
+                    {{ schedule.lastStatus }}
+                  </span>
+                @else
+                  —
+                @end
+              </td>
+              <td class="right nowrap">
+                <form method="POST" class="inline"
+                      action="{{ route('notify.schedules.toggle', { id: schedule.id }) }}">
+                  {{ csrfField() }}
+                  <button type="submit" class="link-danger" style="color: var(--accent)">
+                    {{ schedule.isEnabled ? 'ปิด' : 'เปิด' }}
+                  </button>
+                </form>
+                <a href="{{ route('notify.schedules.edit', { id: schedule.id }) }}">แก้ไข</a>
+              </td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+    @else
+      <p class="empty-state">
+        ยังไม่มีรอบส่ง — สร้างเทมเพลตก่อน แล้วค่อยมาตั้งว่าจะส่งเข้ากลุ่มไหนตอนกี่โมง
+      </p>
+    @end
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">รอบส่งทำงานยังไง</h2>
+    <p class="hint">
+      worker <code>notify:watch</code> ตรวจทุก 60 วินาทีว่ามีรอบไหน<strong>เลยเวลานัดของรอบนี้แล้ว
+      และยังไม่ได้ส่ง</strong> ไม่ได้จับเวลาเป๊ะ ๆ — ถ้า worker ดับข้ามเวลานัดพอดี
+      พอฟื้นขึ้นมาจะยังส่งให้ (สายดีกว่าหาย)
+      <br /><br />
+      ถ้าส่งไม่สำเร็จจะไม่วนลองใหม่ทันที เพราะจะกลายเป็นยิงซ้ำทุกนาทีจนสิ้นวัน —
+      ระบบบันทึกว่าล้มเหลวไว้แล้วรอรอบถัดไปตามตาราง ถ้าต้องส่งเดี๋ยวนั้นให้ใช้
+      “ส่งเดี๋ยวนี้” ในหน้าเทมเพลต
+    </p>
+  </div>
+@end

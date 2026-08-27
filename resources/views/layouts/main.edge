@@ -1,0 +1,80 @@
+{{--
+  หน้าไหนอยู่ระบบไหนดูจาก active ที่หน้านั้นส่งมา ไม่ต้องบอกซ้ำว่าอยู่ระบบอะไร
+  ประกาศนอกบล็อกเงื่อนไข ให้ทั้งแถบบนและ sidebar ใช้ตัวเดียวกัน
+--}}
+@let(currentSystem = findNavSystem(active))
+<!DOCTYPE html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title ?? 'ระบบแจ้งเตือนคิว' }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+  </head>
+  <body>
+    @if (chrome !== false)
+      {{-- แถบบน = เลือกระบบ · sidebar = เมนูของระบบนั้น --}}
+      <header class="topbar">
+        <a class="brand" href="{{ route(currentSystem ? currentSystem.route : 'status') }}">
+          <span class="brand-name">ระบบแจ้งเตือน</span>
+          <span class="brand-sub">โรงพยาบาล</span>
+        </a>
+
+        <nav class="systems">
+          @each (system in navSystems)
+            <a href="{{ route(system.route) }}"
+               class="{{ currentSystem && currentSystem.key === system.key ? 'active' : '' }}">
+              <span class="system-label">{{ system.label }}</span>
+              <span class="system-caption">{{ system.caption }}</span>
+            </a>
+          @end
+        </nav>
+
+        <form method="POST" action="{{ route('logout') }}">
+          {{ csrfField() }}
+          <button type="submit">ออกจากระบบ</button>
+        </form>
+      </header>
+
+      <div class="shell">
+        @if (currentSystem)
+          <aside class="sidebar">
+            @each (group in currentSystem.groups)
+              <div class="side-group">
+                <span class="side-title">{{ group.title }}</span>
+                @each (item in group.items)
+                  <a href="{{ route(item.route) }}"
+                     class="{{ active === item.key ? 'active' : '' }}">{{ item.label }}</a>
+                @end
+              </div>
+            @end
+          </aside>
+        @end
+
+        <main>
+          @if (flashMessages.has('success'))
+            <div class="alert success">{{ flashMessages.get('success') }}</div>
+          @end
+
+          @if (flashMessages.has('error'))
+            <div class="alert error">{{ flashMessages.get('error') }}</div>
+          @end
+
+          @if (flashMessages.has('errors'))
+            <div class="alert error">กรอกข้อมูลไม่ครบหรือไม่ถูกต้อง ตรวจสอบช่องที่ทำเครื่องหมายไว้</div>
+          @end
+
+          {{{ await $slots.main() }}}
+        </main>
+      </div>
+    @else
+      <main>
+        @if (flashMessages.has('error'))
+          <div class="alert error">{{ flashMessages.get('error') }}</div>
+        @end
+
+        {{{ await $slots.main() }}}
+      </main>
+    @end
+  </body>
+</html>

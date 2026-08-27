@@ -1,0 +1,175 @@
+@component('layouts/main', { title: 'ทดสอบส่ง', active: 'test' })
+  <h1>ทดสอบส่งแจ้งเตือน</h1>
+  <p class="subtitle">เลือกเคส ใส่ข้อมูลสมมติ แล้วดูผลก่อนส่งจริง</p>
+
+  @if (!hasCredential)
+    <div class="alert error">
+      ยังไม่ได้ตั้งค่า client-key / secret-key —
+      <a href="{{ route('settings.moph') }}">ไปตั้งค่า MOPH Alert</a> ก่อน
+    </div>
+  @end
+
+  <div class="panel">
+    <h2 class="panel-title">เลือกเคส</h2>
+    <div class="case-picker">
+      @each (key in caseKeys)
+        <a href="{{ route('test.index') }}?case={{ key }}"
+           class="case-chip {{ key === selected ? 'active' : '' }}">
+          {{ cases[key].label }}
+        </a>
+      @end
+    </div>
+    <p class="hint" style="margin-top: 10px">{{ definition.description }}</p>
+  </div>
+
+  <form id="test-form">
+    {{ csrfField() }}
+    <input type="hidden" name="caseKey" value="{{ selected }}" />
+
+    <div class="panel">
+      <h2 class="panel-title">ข้อมูลที่จะใช้</h2>
+
+      <div class="field">
+        <label for="cid">เลขบัตรประชาชนปลายทาง</label>
+        <input type="text" id="cid" name="cid" inputmode="numeric" pattern="\d{13}"
+               maxlength="13" required placeholder="13 หลัก" autocomplete="off" />
+        <p class="hint danger">
+          ข้อความจะไปถึง LINE หมอพร้อมของเจ้าของเลขบัตรนี้จริง
+          ใช้เลขบัตรของตัวเองหรือของเจ้าหน้าที่ที่ยินยอมแล้วเท่านั้น
+        </p>
+      </div>
+
+      @each (key in definition.placeholders)
+        @if (key !== 'url')
+          <div class="field">
+            <label for="{{ key }}">{{ placeholderLabels[key] }} <code>{{ '{' + key + '}' }}</code></label>
+            <input type="text" id="{{ key }}" name="{{ key }}" value="{{ samples[key] }}" />
+          </div>
+        @end
+      @end
+
+      @if (definition.supportsUrl && !item?.checkUrl)
+        <div class="field">
+          <label for="url">ลิงก์ตรวจสอบคิว <code>{url}</code></label>
+          <input type="text" id="url" name="url" value="" placeholder="เว้นว่าง = การ์ดไม่มีปุ่ม" />
+        </div>
+      @end
+
+      <div class="actions">
+        <button type="button" class="secondary" id="preview-btn"
+                data-url="{{ route('test.preview') }}">
+          ดู payload ที่จะส่ง
+        </button>
+        <button type="button" class="danger" id="send-btn"
+                data-url="{{ route('test.send') }}"
+                {{ hasCredential ? '' : 'disabled' }}>
+          ส่งจริง
+        </button>
+      </div>
+
+      <div id="payload-box" class="payload-box" hidden>
+        <div class="payload-head">payload ที่จะ POST ไป <code>/alert/v3.1/template</code></div>
+        <pre id="payload"></pre>
+      </div>
+
+      <div class="checks" id="checks"></div>
+    </div>
+  </form>
+
+  <script>
+    ;(function () {
+      const form = document.getElementById('test-form')
+      const output = document.getElementById('checks')
+      const payloadBox = document.getElementById('payload-box')
+      const payloadEl = document.getElementById('payload')
+      const previewBtn = document.getElementById('preview-btn')
+      const sendBtn = document.getElementById('send-btn')
+
+      const ICONS = { ok: '✓', warn: '!', fail: '✕' }
+
+      function render(checks) {
+        output.replaceChildren()
+        for (const check of checks) {
+          const row = document.createElement('div')
+          row.className = 'check ' + (check.status || 'warn')
+
+          const icon = document.createElement('span')
+          icon.className = 'icon'
+          icon.textContent = ICONS[check.status] || '?'
+
+          const body = document.createElement('div')
+          body.className = 'body'
+          const label = document.createElement('strong')
+          label.textContent = check.label
+          const detail = document.createElement('span')
+          detail.textContent = check.detail
+          body.append(label, detail)
+
+          row.append(icon, body)
+          output.append(row)
+        }
+      }
+
+      function showPayload(payload) {
+        payloadEl.textContent = JSON.stringify(payload, null, 2)
+        payloadBox.hidden = false
+      }
+
+      async function post(url, button, busyLabel) {
+        const original = button.textContent
+        button.disabled = true
+        button.textContent = busyLabel
+
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { Accept: 'application/json' },
+          })
+
+          const body = await response.json().catch(() => null)
+
+          if (!response.ok) {
+            const messages =
+              body && body.errors
+                ? body.errors.map((e) => `${e.field}: ${e.message}`).join(' · ')
+                : `HTTP ${response.status}`
+            render([{ label: 'ทำรายการไม่สำเร็จ', status: 'fail', detail: messages }])
+            return null
+          }
+
+          return body
+        } catch (error) {
+          render([{ label: 'ทำรายการไม่สำเร็จ', status: 'fail', detail: String(error) }])
+          return null
+        } finally {
+          button.disabled = false
+          button.textContent = original
+        }
+      }
+
+      previewBtn.addEventListener('click', async function () {
+        output.replaceChildren()
+        const body = await post(previewBtn.dataset.url, previewBtn, 'กำลังประกอบ…')
+        if (body) showPayload(body.payload)
+      })
+
+      sendBtn.addEventListener('click', async function () {
+        const cid = form.elements.cid.value.trim()
+        if (!/^\d{13}$/.test(cid)) {
+          render([{ label: 'เลขบัตรประชาชน', status: 'fail', detail: 'ต้องเป็นตัวเลข 13 หลัก' }])
+          return
+        }
+
+        const masked = cid.slice(0, 4) + 'xxxxx' + cid.slice(9)
+        if (!confirm(`ส่งข้อความจริงไปยัง LINE หมอพร้อมของ ${masked} ใช่หรือไม่`)) return
+
+        const body = await post(sendBtn.dataset.url, sendBtn, 'กำลังส่ง…')
+        if (body) {
+          if (body.payload) showPayload(body.payload)
+          render(body.checks)
+        }
+      })
+    })()
+  </script>
+@end

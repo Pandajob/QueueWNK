@@ -1,0 +1,122 @@
+@component('layouts/main', { title: item ? 'แก้ไขกลุ่ม' : 'เพิ่มกลุ่ม', active: 'nt-groups' })
+
+  <p class="breadcrumb"><a href="{{ route('notify.groups') }}">← กลุ่ม Line</a></p>
+
+  <h1>{{ item ? item.name : 'เพิ่มกลุ่ม Line' }}</h1>
+  <p class="subtitle">
+    ทุกคนในกลุ่มเห็นข้อความที่ส่งเข้าไป — อย่าใช้กลุ่มนี้ส่งข้อมูลผู้ป่วยรายบุคคล
+  </p>
+
+  <form method="POST"
+        action="{{ item ? route('notify.groups.update', { id: item.id }) : route('notify.groups.store') }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <div class="field">
+        <label for="name">ชื่อกลุ่ม</label>
+        <input type="text" id="name" name="name" required
+               value="{{ old('name', item?.name ?? '') }}"
+               placeholder="เช่น ทีมไอที · SRRT · หัวหน้าฝ่าย" />
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="hcode">รหัสหน่วยบริการ (Hcode)</label>
+          <input type="text" id="hcode" name="hcode" maxlength="10"
+                 value="{{ old('hcode', item?.hcode ?? '') }}" />
+          <p class="hint">ตัวเดียวกับที่ต่อท้ายชื่อกลุ่มใน LINE</p>
+        </div>
+        <div class="field">
+          <label for="baseUrl">Base URL</label>
+          <input type="url" id="baseUrl" name="baseUrl" required
+                 value="{{ old('baseUrl', item?.baseUrl ?? 'https://morpromt2f.moph.go.th') }}" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="clientKey">Client_ID <span class="hint">(header <code>client-key</code>)</span></label>
+        <input type="password" id="clientKey" name="clientKey" autocomplete="off"
+               placeholder="{{ item?.clientKey ? '••••••••  (เว้นว่าง = ไม่เปลี่ยน)' : '' }}" />
+      </div>
+
+      <div class="field">
+        <label for="secretKey">Secret <span class="hint">(header <code>secret-key</code>)</span></label>
+        <input type="password" id="secretKey" name="secretKey" autocomplete="new-password"
+               placeholder="{{ item?.secretKey ? '••••••••  (เว้นว่าง = ไม่เปลี่ยน)' : '' }}" />
+        <p class="hint">เก็บแบบเข้ารหัสด้วย APP_KEY และไม่แสดงกลับมาอีก</p>
+      </div>
+
+      <div class="field">
+        <label for="note">หมายเหตุ</label>
+        <input type="text" id="note" name="note" maxlength="500"
+               value="{{ old('note', item?.note ?? '') }}"
+               placeholder="เช่น ใช้แจ้งเตือนระบบล่มเท่านั้น" />
+      </div>
+
+      <label class="checkbox">
+        <input type="checkbox" name="isActive" value="1"
+               {{ item ? (item.isActive ? 'checked' : '') : 'checked' }} />
+        เปิดใช้งานกลุ่มนี้
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="supportsFlex" value="1"
+               {{ item ? (item.supportsFlex ? 'checked' : '') : 'checked' }} />
+        กลุ่มนี้รับการ์ด Flex ได้
+      </label>
+      <p class="hint" style="margin: -4px 0 0 26px">
+        ปกติเปิดไว้ ปิดเมื่อปลายทางไม่ส่งการ์ดต่อจริง ๆ แล้วระบบจะส่งเป็นข้อความธรรมดาแทน
+        ข้อมูลครบเหมือนกัน แค่ไม่มีสี
+        <br />
+        <strong>การ์ดเข้ากลุ่มช้ากว่าข้อความธรรมดามาก</strong> วัดได้ราว 19 นาที
+        เพราะ MOPH ตอบ <code>200</code> ตั้งแต่ตอนรับเรื่อง แล้วค่อยส่งต่อให้ LINE อีกทอด
+        ทดสอบแล้วยังไม่เห็นอย่าเพิ่งปิดสวิตช์นี้ — รอสักครึ่งชั่วโมงก่อน
+      </p>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+        <button type="button" class="secondary" id="test-btn"
+                data-url="{{ item ? route('notify.groups.test', { id: item.id }) : route('notify.groups.test.new') }}">
+          ทดสอบ key
+        </button>
+        @if (item)
+          <button type="button" class="secondary"
+                  data-url="{{ route('notify.groups.send', { id: item.id }) }}"
+                  data-confirm="ข้อความทดสอบจะโผล่ในกลุ่ม LINE ให้ทุกคนในกลุ่มเห็น ยืนยันส่ง?">
+            ส่งข้อความทดสอบเข้ากลุ่ม
+          </button>
+        @end
+      </div>
+
+      <p class="hint" style="margin-top: 10px">
+        <strong>ทดสอบ key</strong> ยิงคำขอที่ไม่มีข้อความแนบไป ตรวจได้ว่า key ถูกหรือผิด
+        โดยไม่มีอะไรโผล่ในกลุ่ม ส่วน <strong>ส่งข้อความทดสอบ</strong> ส่งจริง ทุกคนในกลุ่มเห็น
+      </p>
+
+      @if (item?.lastTestError)
+        <p class="status-line">ผลทดสอบล่าสุด: {{ item.lastTestError }}</p>
+      @end
+
+      <div class="checks" id="checks"></div>
+    </div>
+  </form>
+
+  @if (item)
+    <div class="panel">
+      <h2 class="panel-title">ลบกลุ่มนี้</h2>
+      <p class="hint">
+        ประวัติการส่งเดิมยังอยู่ (เก็บชื่อกลุ่มไว้ในแต่ละรายการแล้ว)
+        แต่ตารางเวลาที่ส่งเข้ากลุ่มนี้จะเหลือปลายทางน้อยลง
+      </p>
+      <form method="POST" action="{{ route('notify.groups.destroy', { id: item.id }) }}"
+            onsubmit="return confirm('ลบกลุ่ม {{ item.name }} ใช่หรือไม่')">
+        {{ csrfField() }}
+        <div class="actions">
+          <button type="submit" class="danger">ลบกลุ่ม</button>
+        </div>
+      </form>
+    </div>
+  @end
+
+  @include('partials/test_script')
+@end

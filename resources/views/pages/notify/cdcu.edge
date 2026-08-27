@@ -1,0 +1,262 @@
+@component('layouts/main', { title: 'CDCU เฝ้าระวังโรค', active: 'nt-cdcu' })
+
+  <h1>CDCU เฝ้าระวังโรค</h1>
+  <p class="subtitle">
+    เฝ้าทะเบียนรายงาน 506 ใน HOSxP (<code>surveil_member</code>) แล้วแจ้งเคสใหม่เข้ากลุ่ม LINE
+  </p>
+
+  @if (hosxpDown)
+    <div class="panel notice">
+      <strong>อ่านข้อมูลจาก HOSxP ไม่ได้ตอนนี้</strong>
+      <p class="hint" style="margin-top: 6px">
+        ตั้งค่ายังแก้ได้ตามปกติ แต่ตารางเคสด้านล่างจะว่างจนกว่าการเชื่อมต่อจะกลับมา
+        — ตรวจที่ <a href="{{ route('settings.hosxp') }}">ตั้งค่า HOSxP</a>
+      </p>
+    </div>
+  @end
+
+  <div class="panel {{ settings.isEnabled ? '' : 'notice' }}">
+    <div class="template-head">
+      <h2 class="panel-title">สถานะการเฝ้าระวัง</h2>
+      @if (settings.isEnabled && settings.groupId)
+        <span class="pill on">เปิดอยู่</span>
+      @else
+        <span class="pill off">ปิดอยู่</span>
+      @end
+    </div>
+    <p class="hint">
+      ระบบดูเฉพาะเคสที่<strong>เข้ามาใหม่</strong> โดยจำเลข <code>sv_number</code> ล่าสุดไว้
+      รอบแรกที่เปิดใช้งานจะตั้งหลักที่เคสล่าสุด ไม่ย้อนแจ้งทะเบียนเก่าที่มีอยู่แล้ว
+    </p>
+  </div>
+
+  <form method="POST" action="{{ route('notify.cdcu.save') }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <h2 class="panel-title">ตั้งค่า</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="isEnabled" value="1" {{ settings.isEnabled ? 'checked' : '' }} />
+        <strong>เปิดการเฝ้าระวังและแจ้งเตือน</strong>
+      </label>
+
+      <div class="field" style="margin-top: 14px">
+        <label for="groupId">กลุ่ม LINE ที่จะแจ้ง</label>
+        <select id="groupId" name="groupId">
+          <option value="">— ยังไม่เลือก —</option>
+          @each (group in groups)
+            <option value="{{ group.id }}" {{ settings.groupId === group.id ? 'selected' : '' }}>
+              {{ group.name }}
+            </option>
+          @end
+        </select>
+        @if (!groups.length)
+          <p class="hint danger">
+            ยังไม่มีกลุ่ม — <a href="{{ route('notify.groups.create') }}">เพิ่มกลุ่มก่อน</a>
+          </p>
+        @end
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="quietStart">งดส่งตั้งแต่</label>
+          <input type="time" id="quietStart" name="quietStart" required value="{{ settings.quietStart }}" />
+        </div>
+        <div class="field">
+          <label for="quietEnd">ถึง</label>
+          <input type="time" id="quietEnd" name="quietEnd" required value="{{ settings.quietEnd }}" />
+        </div>
+        <div class="field">
+          <label for="throttleMinutes">รวบเคสส่งทีเดียวทุก</label>
+          <input type="number" id="throttleMinutes" name="throttleMinutes" min="1" max="1440"
+                 required value="{{ settings.throttleMinutes }}" />
+          <p class="hint">นาที</p>
+        </div>
+      </div>
+
+      <p class="hint">
+        เคสที่เกิดในช่วงงดส่งไม่หาย — ระบบยังไม่ขยับตัวนับ พอพ้นช่วงจะแจ้งให้ครบ
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ข้อมูลที่ส่งเข้ากลุ่ม</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="includeName" value="1" {{ settings.includeName ? 'checked' : '' }} />
+        ใส่ชื่อ-สกุลผู้ป่วย
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="includeHn" value="1" {{ settings.includeHn ? 'checked' : '' }} />
+        ใส่ HN
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="includePhone" value="1" {{ settings.includePhone ? 'checked' : '' }} />
+        ใส่เบอร์โทร
+      </label>
+
+      <p class="hint" style="margin-top: 10px">
+        ค่าตั้งต้นคือ<strong>ไม่ใส่ทั้งสามอย่าง</strong> ข้อความจะมีแค่ชื่อโรค จำนวน ตำบล/หมู่ แผนก และสถานะ
+        <br />
+        เปิดเมื่อทีมต้องตามเคสทันที และกลุ่ม LINE ปลายทาง<strong>มีแต่คนที่มีสิทธิ์เข้าถึงข้อมูลผู้ป่วย</strong> —
+        ข้อความในกลุ่มถูกอ่านย้อนหลังได้ ส่งต่อได้ และค้างอยู่บนเครื่องของทุกคนในกลุ่ม
+        <br />
+        เลขบัตรประชาชน<strong>ไม่ถูกส่งไม่ว่ากรณีใด</strong> — ไม่ได้ดึงมาตั้งแต่ตอนอ่านฐาน
+        และระบบยังตัดเลข 13 หลักทิ้งก่อนส่งอีกชั้น
+        <br />
+        ตัวเลือกเดียวกันนี้คุมคอลัมน์ในตาราง "เคสล่าสุด" ข้างล่างด้วย
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">โรคที่เฝ้า</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="watchAll" value="1" {{ settings.watchAll ? 'checked' : '' }}
+               id="watch-all" />
+        เฝ้าทุกโรคในทะเบียน 506
+      </label>
+
+      <div id="disease-box" style="margin-top: 14px">
+        @if (diseases && diseases.length)
+          <p class="hint" style="margin-bottom: 10px">เลือกเฉพาะโรคที่ต้องการ</p>
+          <div class="check-grid">
+            @each (disease in diseases)
+              <label class="checkbox">
+                <input type="checkbox" name="watchedCodes[]" value="{{ disease.code }}"
+                       {{ (settings.watchedCodes ?? []).includes(disease.code) ? 'checked' : '' }} />
+                {{ disease.name }}
+              </label>
+            @end
+          </div>
+        @else
+          <p class="hint">อ่านรายชื่อโรคจาก HOSxP ไม่ได้ตอนนี้</p>
+        @end
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="panel">
+    <div class="template-head">
+      <h2 class="panel-title">สรุปรายโรค {{ days }} วันล่าสุด</h2>
+      <span>
+        <a href="?days=7">7 วัน</a> ·
+        <a href="?days=30">30 วัน</a> ·
+        <a href="?days=90">90 วัน</a>
+      </span>
+    </div>
+
+    @if (summary && summary.length)
+      <table class="listing">
+        <thead>
+          <tr><th>โรค</th><th class="right">จำนวนเคส</th></tr>
+        </thead>
+        <tbody>
+          @each (row in summary)
+            <tr>
+              <td>{{ row.disease_name ?? ('รหัส ' + row.code506) }}</td>
+              <td class="right">{{ row.cases }}</td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+    @else
+      <p class="empty-state">ไม่มีเคสในช่วงนี้</p>
+    @end
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">เคสล่าสุด</h2>
+
+    @if (cases && cases.length)
+      <div class="result-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>sv</th>
+              <th>วันที่รายงาน</th>
+              <th>โรค</th>
+              <th>ICD-10</th>
+              @if (settings.includeName)
+                <th>ชื่อ-สกุล</th>
+              @end
+              @if (settings.includeHn)
+                <th>HN</th>
+              @end
+              @if (settings.includePhone)
+                <th>เบอร์โทร</th>
+              @end
+              <th>ตำบล / หมู่</th>
+              <th>แผนก</th>
+              <th>สถานะ</th>
+              <th>แจ้งแล้ว</th>
+            </tr>
+          </thead>
+          <tbody>
+            @each (row in cases)
+              <tr>
+                <td>{{ row.sv_number }}</td>
+                <td>{{ row.report_date ?? '—' }}</td>
+                <td>{{ row.disease_name ?? '—' }}</td>
+                <td>{{ row.pdx ?? '—' }}</td>
+                @if (settings.includeName)
+                  <td>{{ ((row.pname ?? '') + (row.fname ?? '') + ' ' + (row.lname ?? '')).trim() || '—' }}</td>
+                @end
+                @if (settings.includeHn)
+                  <td>{{ row.hn ?? '—' }}</td>
+                @end
+                @if (settings.includePhone)
+                  <td>{{ row.mobile_phone || row.home_phone || '—' }}</td>
+                @end
+                <td>
+                  {{ row.tambon ? 'ต.' + row.tambon : '' }}
+                  {{ row.moo ? 'ม.' + row.moo : '' }}
+                </td>
+                <td>{{ row.department ?? '—' }}</td>
+                <td>{{ row.status_name ?? '—' }}</td>
+                <td>
+                  @if (notifiedBySv.has(row.sv_number))
+                    <span class="tag sent">เห็นแล้ว</span>
+                  @else
+                    <span class="tag muted">—</span>
+                  @end
+                </td>
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top: 10px">
+        คอลัมน์ชื่อ HN และเบอร์โทรขึ้นตามตัวเลือก "ข้อมูลที่ส่งเข้ากลุ่ม" ข้างบน —
+        ปิดตัวเลือกแล้วคอลัมน์หายไปด้วย
+        <br />
+        เลขบัตรประชาชนไม่แสดงในหน้านี้โดยตั้งใจ ถ้าต้องดูรายบุคคลเต็ม ๆ
+        ให้เปิดจากโปรแกรม HOSxP ซึ่งมีการควบคุมสิทธิ์ของตัวเอง
+      </p>
+    @else
+      <p class="empty-state">ไม่มีเคสในช่วง {{ days }} วันล่าสุด</p>
+    @end
+  </div>
+
+  <script>
+    // เลือก "เฝ้าทุกโรค" แล้วรายการเลือกทีละโรคไม่มีความหมาย ซ่อนไปเลย
+    ;(function () {
+      const all = document.getElementById('watch-all')
+      const box = document.getElementById('disease-box')
+
+      function sync() {
+        box.style.display = all.checked ? 'none' : ''
+      }
+
+      all.addEventListener('change', sync)
+      sync()
+    })()
+  </script>
+@end

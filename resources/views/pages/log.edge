@@ -1,0 +1,168 @@
+@component('layouts/main', { title: 'บันทึกการส่ง', active: 'log' })
+  <h1>บันทึกการส่ง</h1>
+  <p class="subtitle">ทุกรายการที่ระบบตั้งใจจะส่ง พร้อมผลลัพธ์</p>
+
+  <div class="panel">
+    <div class="case-picker">
+      @each (key in ['all', 'pending', 'sent', 'failed', 'skipped'])
+        <a href="{{ route('poller.log') }}?status={{ key }}"
+           class="case-chip {{ status === key ? 'active' : '' }}">
+          {{ key === 'all' ? 'ทั้งหมด' : key === 'pending' ? 'รอส่ง' : key === 'sent' ? 'ส่งแล้ว' : key === 'failed' ? 'ล้มเหลว' : 'ข้าม' }}
+          @if (summary[key])
+            <span class="count">{{ summary[key].toLocaleString() }}</span>
+          @end
+        </a>
+      @end
+    </div>
+  </div>
+
+  <div class="panel">
+    @if (notifications.all().length)
+      <p class="hint log-range">
+        แสดง
+        {{ ((notifications.currentPage - 1) * notifications.perPage + 1).toLocaleString() }}–{{ ((notifications.currentPage - 1) * notifications.perPage + notifications.all().length).toLocaleString() }}
+        จาก {{ notifications.total.toLocaleString() }} รายการ
+      </p>
+
+      <div class="table-scroll">
+        <table class="listing log-table">
+          <thead>
+            <tr>
+              <th>เวลา</th>
+              <th>VN</th>
+              <th>คิว</th>
+              <th>เคส</th>
+              <th>สถานะ</th>
+              @if (hasNotes)
+                <th>หมายเหตุ</th>
+              @end
+              @if (hasFailed)
+                <th class="right"></th>
+              @end
+            </tr>
+          </thead>
+          <tbody>
+            @each (row in notifications.all())
+              <tr>
+                <td class="nowrap stamp"
+                    title="{{ row.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm:ss') }}">
+                  <strong>{{ row.createdAt.setZone('Asia/Bangkok').toFormat('HH:mm') }}</strong>
+                  <span class="hint">{{ row.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM') }}</span>
+                </td>
+                <td class="nowrap"><code>{{ row.vn }}</code></td>
+                <td class="nowrap">
+                  <strong>{{ row.depq ?? '—' }}</strong>
+                  <span class="hint">{{ row.dep ?? '' }}</span>
+                </td>
+                <td>{{ cases[row.caseKey] ? cases[row.caseKey].label : row.caseKey }}</td>
+                <td class="nowrap">
+                  <span class="pill status-{{ row.status }}">
+                    {{ row.status === 'sent' ? 'ส่งแล้ว' : row.status === 'pending' ? 'รอส่ง' : row.status === 'failed' ? 'ล้มเหลว' : 'ข้าม' }}
+                  </span>
+                  @if (row.mophCode)
+                    <span class="hint">{{ row.mophCode }}</span>
+                  @end
+                </td>
+                @if (hasNotes)
+                  <td class="note" title="{{ row.lastError ?? '' }}">{{ row.lastError ?? '' }}</td>
+                @end
+                @if (hasFailed)
+                  <td class="right nowrap">
+                    @if (row.status === 'failed')
+                      <form method="POST" action="{{ route('poller.retry', { id: row.id }) }}" class="inline">
+                        {{ csrfField() }}
+                        <button type="submit" class="link-retry">ส่งใหม่</button>
+                      </form>
+                    @end
+                  </td>
+                @end
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
+
+      @if (notifications.lastPage > 1)
+        <div class="pager">
+          @if (notifications.currentPage > 1)
+            <a href="{{ notifications.getUrl(1) }}">« แรก</a>
+            <a href="{{ notifications.getUrl(notifications.currentPage - 1) }}">← ก่อนหน้า</a>
+          @end
+          <span class="hint">หน้า {{ notifications.currentPage }} / {{ notifications.lastPage }}</span>
+          @if (notifications.currentPage < notifications.lastPage)
+            <a href="{{ notifications.getUrl(notifications.currentPage + 1) }}">ถัดไป →</a>
+            <a href="{{ notifications.getUrl(notifications.lastPage) }}">สุดท้าย »</a>
+          @end
+        </div>
+      @end
+    @else
+      <p class="empty-state">ยังไม่มีรายการ</p>
+    @end
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">ล้างรายการทดสอบ</h2>
+    <p class="hint">
+      ลบเฉพาะรายการที่สถานะ “ข้าม” และ “ล้มเหลว” ของวันนี้
+      ใช้ตอนลองตั้งค่าไปมา รายการที่ส่งสำเร็จแล้วจะไม่ถูกลบ
+    </p>
+    <form method="POST" action="{{ route('poller.reset') }}"
+          onsubmit="return confirm('ล้างรายการที่ข้ามและล้มเหลวของวันนี้ใช่หรือไม่')">
+      {{ csrfField() }}
+      <div class="actions">
+        <button type="submit" class="secondary">ล้างรายการวันนี้</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">ล้างข้อมูลเก่า</h2>
+    <p class="hint">
+      ลบบันทึกการส่งทั้งหมดที่เก่ากว่าช่วงที่เลือก รวมรายการที่ส่งสำเร็จแล้วด้วย
+      @if (oldest)
+        <br />
+        ตอนนี้เก็บอยู่ {{ notifications.total.toLocaleString() }} รายการ เก่าสุดคือ
+        {{ oldest.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM') }}/{{ oldest.createdAt.setZone('Asia/Bangkok').year + 543 }}
+      @end
+      <br />
+      ไม่ทำให้ผู้ป่วยได้รับข้อความซ้ำ เพราะระบบอ่านคิวเฉพาะของวันนี้ —
+      รายการของวันเก่าไม่มีทางกลับเข้ามาในรอบสแกนอีก
+      <br />
+      <strong>ลบแล้วกู้คืนไม่ได้</strong> ระบบบันทึกไว้ในประวัติการแก้ไขว่าใครเป็นคนสั่ง
+    </p>
+
+    <form method="POST" action="{{ route('poller.clearOld') }}" id="clear-old-form">
+      {{ csrfField() }}
+      <div class="row">
+        <div class="field">
+          <label for="clear-days">ลบรายการที่เก่ากว่า</label>
+          <select id="clear-days" name="days">
+            <option value="7">7 วัน</option>
+            <option value="30" selected>30 วัน</option>
+            <option value="90">90 วัน</option>
+            <option value="180">180 วัน</option>
+            <option value="365">1 ปี</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="danger">ล้างข้อมูลเก่า</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // ถามให้ชัดว่ากำลังจะลบของเก่ากว่ากี่วัน ไม่ใช่ข้อความกลาง ๆ ที่กดผ่านโดยไม่อ่าน
+    ;(function () {
+      const form = document.getElementById('clear-old-form')
+      const days = document.getElementById('clear-days')
+
+      form.addEventListener('submit', function (event) {
+        const label = days.options[days.selectedIndex].text
+        if (!confirm('ลบบันทึกการส่งที่เก่ากว่า ' + label + ' ทั้งหมดใช่หรือไม่ กู้คืนไม่ได้')) {
+          event.preventDefault()
+        }
+      })
+    })()
+  </script>
+@end

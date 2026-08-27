@@ -1,0 +1,202 @@
+@component('layouts/main', { title: item ? 'แก้ไขชุดข้อมูล' : 'เพิ่มชุดข้อมูล', active: 'nt-datasets' })
+
+  <p class="breadcrumb"><a href="{{ route('notify.datasets') }}">← รายการข้อมูล</a></p>
+
+  <h1>{{ item ? item.name : 'เพิ่มชุดข้อมูล' }}</h1>
+  <p class="subtitle">
+    ผลลัพธ์ของคำสั่งนี้จะกลายเป็นตัวยึดให้เทมเพลตใช้ — ชื่อคอลัมน์คือชื่อตัวยึด
+  </p>
+
+  <form method="POST"
+        action="{{ item ? route('notify.datasets.update', { id: item.id }) : route('notify.datasets.store') }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <div class="row">
+        <div class="field">
+          <label for="name">ชื่อ</label>
+          <input type="text" id="name" name="name" required
+                 value="{{ old('name', item?.name ?? '') }}"
+                 placeholder="เช่น ยอดผู้ป่วยนอกวันนี้" />
+        </div>
+        <div class="field narrow">
+          <label for="key">ชื่อย่อ</label>
+          <input type="text" id="key" name="key" required pattern="[a-z0-9_]+"
+                 value="{{ old('key', item?.key ?? '') }}" placeholder="opd_today" />
+          <p class="hint">a–z 0–9 _ เท่านั้น</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="description">คำอธิบาย</label>
+        <input type="text" id="description" name="description" maxlength="500"
+               value="{{ old('description', item?.description ?? '') }}" />
+      </div>
+
+      <div class="field">
+        <label for="sqlText">คำสั่ง SQL</label>
+        <textarea id="sqlText" name="sqlText" rows="12" required class="code">{{ old('sqlText', item?.sqlText ?? '') }}</textarea>
+        <p class="hint">
+          ระบบครอบ <code>LIMIT {{ maxRows }}</code> ให้อีกชั้นเสมอ
+          คำสั่งที่คืนแถวเดียวเหมาะกับข้อความแบบสรุป ส่วนหลายแถวใช้กับ
+          <code>&#123;each&#125;</code> ในเทมเพลต
+        </p>
+      </div>
+
+      <label class="checkbox">
+        <input type="checkbox" name="isEnabled" value="1"
+               {{ item ? (item.isEnabled ? 'checked' : '') : 'checked' }} />
+        เปิดใช้งาน
+      </label>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+        <button type="button" class="secondary" id="preview-btn"
+                data-url="{{ route('notify.datasets.preview') }}">
+          ลองรัน
+        </button>
+      </div>
+
+      <div id="result"></div>
+    </div>
+  </form>
+
+  <div class="panel">
+    <h2 class="panel-title">ตัวอย่าง</h2>
+    <p class="hint" style="margin-bottom: 10px">
+      กดเพื่อวางลงในช่อง SQL ด้านบน — ทุกอันตรวจกับฐานจริงแล้ว
+    </p>
+    <div class="case-picker">
+      @each (example in examples)
+        <button type="button" class="case-chip example-btn"
+                data-sql="{{ example.sql }}"
+                title="{{ example.description }}">{{ example.name }}</button>
+      @end
+    </div>
+  </div>
+
+  <div class="panel notice">
+    <strong>อย่าใส่ CONVERT แปลง charset</strong>
+    <p class="hint" style="margin-top: 6px">
+      ถ้าคัด SQL มาจาก HeidiSQL หรือ Navicat อาจติดท่าแปลงภาษาไทยมาด้วย เช่น
+      <code>CONVERT(CAST(CONVERT(col USING utf8) AS BINARY) USING tis620)</code>
+      <br />
+      ท่านั้นจำเป็นกับโปรแกรมที่ต่อฐานเป็น utf8 แต่ระบบนี้ต่อด้วย
+      <code>TIS620_THAI_CI</code> อยู่แล้ว ใส่เพิ่มจะกลายเป็นแปลงซ้ำแล้วได้
+      <code>เธ�เธธเธ�</code> แทนภาษาไทย — <strong>เรียกคอลัมน์ตรง ๆ พอ</strong>
+    </p>
+  </div>
+
+  @if (item)
+    <div class="panel">
+      <h2 class="panel-title">ลบชุดข้อมูลนี้</h2>
+      <p class="hint">เทมเพลตที่ใช้ชุดข้อมูลนี้อยู่จะไม่มีข้อมูลมาเติมให้อีก</p>
+      <form method="POST" action="{{ route('notify.datasets.destroy', { id: item.id }) }}"
+            onsubmit="return confirm('ลบชุดข้อมูล {{ item.name }} ใช่หรือไม่')">
+        {{ csrfField() }}
+        <div class="actions">
+          <button type="submit" class="danger">ลบ</button>
+        </div>
+      </form>
+    </div>
+  @end
+
+  <script>
+    ;(function () {
+      const sqlBox = document.getElementById('sqlText')
+      const output = document.getElementById('result')
+      const button = document.getElementById('preview-btn')
+
+      for (const chip of document.querySelectorAll('.example-btn')) {
+        chip.addEventListener('click', function () {
+          sqlBox.value = chip.dataset.sql
+          sqlBox.focus()
+        })
+      }
+
+      function note(text, kind) {
+        const p = document.createElement('p')
+        p.className = kind === 'bad' ? 'hint danger' : 'hint'
+        p.style.marginTop = '12px'
+        p.textContent = text
+        return p
+      }
+
+      // สร้าง DOM เอง ไม่ต่อ HTML เป็นสตริง — ค่าที่ได้มาจากฐาน HOSxP
+      // ซึ่งเป็นข้อความที่คนคีย์เข้าไป ไม่ควรถูกตีความเป็น markup
+      function renderTable(result) {
+        const wrap = document.createElement('div')
+        wrap.className = 'result-scroll'
+
+        const table = document.createElement('table')
+        const thead = document.createElement('thead')
+        const headRow = document.createElement('tr')
+
+        for (const column of result.columns) {
+          const th = document.createElement('th')
+          th.textContent = column
+          headRow.append(th)
+        }
+        thead.append(headRow)
+
+        const tbody = document.createElement('tbody')
+        for (const row of result.rows) {
+          const tr = document.createElement('tr')
+          for (const column of result.columns) {
+            const td = document.createElement('td')
+            td.textContent = row[column] === null || row[column] === undefined ? '—' : String(row[column])
+            tr.append(td)
+          }
+          tbody.append(tr)
+        }
+
+        table.append(thead, tbody)
+        wrap.append(table)
+        return wrap
+      }
+
+      button.addEventListener('click', async function () {
+        button.disabled = true
+        const original = button.textContent
+        button.textContent = 'กำลังรัน…'
+        output.replaceChildren(note('กำลังรัน…'))
+
+        try {
+          const response = await fetch(button.dataset.url, {
+            method: 'POST',
+            body: new FormData(button.closest('form')),
+            headers: { Accept: 'application/json' },
+          })
+
+          const result = await response.json()
+
+          if (!result.ok) {
+            output.replaceChildren(note(result.error || 'รันไม่สำเร็จ', 'bad'))
+            return
+          }
+
+          const parts = [
+            note(
+              result.rowCount + ' แถว · ' + result.durationMs + ' ms' +
+                (result.truncated ? ' · ผลลัพธ์ถูกตัด' : '') +
+                (result.slow ? ' · ช้ากว่าที่ควร ระวังภาระเครื่องจริง' : ''),
+              result.slow ? 'bad' : 'ok'
+            ),
+          ]
+
+          if (result.rowCount) {
+            parts.push(renderTable(result))
+            parts.push(note('ตัวยึดที่ใช้ได้ในเทมเพลต: ' + result.columns.map((c) => '{' + c + '}').join(' ')))
+          }
+
+          output.replaceChildren(...parts)
+        } catch (error) {
+          output.replaceChildren(note(String(error), 'bad'))
+        } finally {
+          button.disabled = false
+          button.textContent = original
+        }
+      })
+    })()
+  </script>
+@end

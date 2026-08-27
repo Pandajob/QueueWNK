@@ -1,0 +1,97 @@
+@component('layouts/main', { title: 'แจ้งเตือนทีมงาน', active: 'notify' })
+  <h1>แจ้งเตือนทีมงาน</h1>
+  <p class="subtitle">
+    ส่งสถานะของระบบคิวเข้ากลุ่ม LINE ของทีมไอที จะได้รู้ทันทีเมื่อ poller ล่ม
+    โดยไม่ต้องนั่งเฝ้าหน้าสถานะ
+  </p>
+
+  <div class="panel notice">
+    <strong>คนละอย่างกับ MOPH Alert</strong>
+    <p class="hint" style="margin-top: 6px">
+      MOPH Alert ส่งหา<strong>ผู้ป่วยรายคน</strong>ด้วยเลขบัตรประชาชน ส่วน MOPH Notify
+      ส่งเข้า<strong>กลุ่มแชท</strong>ที่มีคนอ่านหลายคน หน้านี้จึงส่งได้แค่สถานะของเครื่อง
+      กับตัวเลขสรุป <strong>ไม่มีชื่อ ไม่มี HN ไม่มีเลขบัตร ไม่มีเลขคิวของใคร</strong>
+      และมีตัวกรองตัดเลข 13 หลักทิ้งก่อนส่งทุกครั้งเผื่อหลุดมากับข้อความ error
+    </p>
+  </div>
+
+  <form method="POST" action="{{ route('settings.notify.save') }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <h2 class="panel-title">กลุ่มปลายทาง</h2>
+
+      <div class="field">
+        <label for="groupId">ส่งเข้ากลุ่ม</label>
+        <select id="groupId" name="groupId">
+          <option value="">— ปิดการแจ้งเตือนทีมงาน —</option>
+          @each (group in groups)
+            <option value="{{ group.id }}" {{ settings.groupId === group.id ? 'selected' : '' }}>
+              {{ group.name }}
+            </option>
+          @end
+        </select>
+        <p class="hint">
+          จัดการกลุ่มและ key ที่ <a href="{{ route('notify.groups') }}">MOPH Notify → กลุ่ม Line</a>
+        </p>
+      </div>
+
+      @if (!groups.length)
+        <p class="hint danger">
+          ยังไม่มีกลุ่มที่เปิดใช้งาน —
+          <a href="{{ route('notify.groups.create') }}">เพิ่มกลุ่มก่อน</a>
+        </p>
+      @end
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">เตือนเรื่องอะไรบ้าง</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="onError" value="1" {{ settings.onError ? 'checked' : '' }} />
+        🔴 poller ทำงานไม่สำเร็จ (ต่อ HOSxP ไม่ได้ query พัง ฯลฯ)
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="onRecover" value="1" {{ settings.onRecover ? 'checked' : '' }} />
+        🟢 กลับมาทำงานปกติหลังจากเคยพัง
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="onSendFailure" value="1" {{ settings.onSendFailure ? 'checked' : '' }} />
+        🟠 ส่งแจ้งเตือนหาผู้ป่วยไม่ผ่าน (แจ้งเป็นจำนวน ไม่บอกว่าใคร)
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="onRestart" value="1" {{ settings.onRestart ? 'checked' : '' }} />
+        ⚠️ worker กลับมาหลังจากเงียบหายไปนาน
+      </label>
+
+      <div class="field" style="margin-top: 16px; max-width: 220px">
+        <label for="throttleMinutes">ไม่เตือนเรื่องเดิมซ้ำภายใน</label>
+        <input type="number" id="throttleMinutes" name="throttleMinutes" min="1" max="1440"
+               value="{{ settings.throttleMinutes }}" required />
+        <p class="hint">นาที</p>
+      </div>
+
+      <p class="hint">
+        poller วนทุก 15 วินาที ถ้า HOSxP ล่มค้างไว้จะเข้าเงื่อนไขเตือนทุกรอบ
+        ค่านี้กันไม่ให้กลุ่มถูกถล่มด้วยข้อความเดิม
+      </p>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="panel">
+    <h2 class="panel-title">ข้อจำกัดที่ต้องรู้</h2>
+    <p class="hint">
+      worker ตายแล้ว docker ปลุกขึ้นมาใหม่ ตัวมันเองจะเห็นว่าหายไปนานแล้วรายงานย้อนหลัง
+      <strong>แต่ถ้าตายแล้วไม่ฟื้นเลย จะไม่มีใครส่งข้อความออกมา</strong>
+      ตัวเฝ้าที่อยู่ในตัวที่ถูกเฝ้าย่อมเฝ้าตัวเองตอนตายไม่ได้ —
+      ถ้าต้องปิดช่องนี้จริงต้องมี monitoring จากนอกเครื่อง
+    </p>
+  </div>
+@end

@@ -1,0 +1,26 @@
+# เก็บใน repo เป็น LF เสมอ ไม่ว่าใครจะเช็คเอาต์บน Windows หรือ Linux
+# ถ้าไม่มีบรรทัดนี้ คนที่ทำงานบน Windows จะ commit CRLF ติดไปด้วย
+# แล้วครั้งต่อไปที่อีกคน pull จะเห็น "ทั้งไฟล์เปลี่ยน" ทั้งที่ไม่มีใครแก้อะไรเลย
+* text=auto eol=lf
+
+# สคริปต์ที่รันในคอนเทนเนอร์ Linux — CRLF ทำให้ขึ้น "bad interpreter" ทันที
+*.sh   text eol=lf
+Dockerfile text eol=lf
+
+# ไฟล์ที่ห้าม git แตะบรรทัด ไม่งั้นพัง
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.pdf  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+
+# lockfile เปลี่ยนทีเป็นพัน ๆ บรรทัด ยุบใน diff ให้อ่านง่ายขึ้น
+package-lock.json -diff linguist-generated
+
+# ไฟล์ที่ไม่ต้องนับเป็น "ภาษาของโปรเจกต์" บน GitHub
+docs/** linguist-documentation

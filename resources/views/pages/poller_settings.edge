@@ -1,0 +1,77 @@
+@component('layouts/main', { title: 'ตั้งค่าการส่ง', active: 'poller' })
+  <h1>ตั้งค่าการส่ง</h1>
+  <p class="subtitle">คุมว่าจะส่งจริงหรือไม่ ห้องไหนบ้าง และเวลาไหน</p>
+
+  <form method="POST" action="{{ route('poller.settings.save') }}">
+    {{ csrfField() }}
+
+    <div class="panel {{ settings.dryRun ? 'notice' : '' }}">
+      <label class="checkbox">
+        <input type="checkbox" name="dryRun" value="1" {{ settings.dryRun ? 'checked' : '' }} />
+        โหมดทดสอบ (dry run)
+      </label>
+      <p class="hint" style="margin-top: 8px">
+        เปิดไว้ = ตรวจจับและบันทึกทุกอย่างตามปกติ แต่<strong>ไม่ยิงไปหา MOPH Alert</strong>
+        รายการจะขึ้นในหน้าบันทึกการส่งเป็นสถานะ “ข้าม” ให้ตรวจดูก่อนว่าถูกคนถูกข้อความ
+        <br />
+        ปิด = ข้อความถึงผู้ป่วยจริง
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">เวลาและเกณฑ์</h2>
+
+      <div class="row">
+        <div class="field">
+          <label for="quietStart">งดส่งตั้งแต่</label>
+          <input type="time" id="quietStart" name="quietStart" value="{{ settings.quietStart }}" required />
+        </div>
+        <div class="field">
+          <label for="quietEnd">ถึง</label>
+          <input type="time" id="quietEnd" name="quietEnd" value="{{ settings.quietEnd }}" required />
+        </div>
+        <div class="field">
+          <label for="nearThreshold">แจ้ง “ใกล้ถึงคิว” เมื่อเหลือ</label>
+          <input type="number" id="nearThreshold" name="nearThreshold" min="1" max="50"
+                 value="{{ settings.nearThreshold }}" required />
+          <p class="hint">คิวข้างหน้า</p>
+        </div>
+      </div>
+
+      <p class="hint">
+        รายการที่เกิดในช่วงงดส่งจะไม่ถูกทิ้ง แต่ค้างไว้แล้วส่งเมื่อพ้นช่วง
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ห้องตรวจที่จะแจ้งเตือน</h2>
+
+      @if (departments.length)
+        <p class="hint" style="margin-bottom: 12px">
+          รายชื่อนี้สร้างจากห้องที่พบจริงในระบบคิว ตั้งต้นปิดทั้งหมด
+        </p>
+        <div class="dep-grid">
+          @each (department in departments)
+            <label class="checkbox dep-item">
+              <input type="checkbox" name="departments[]" value="{{ department.depcode }}"
+                     {{ department.isEnabled ? 'checked' : '' }} />
+              <span>
+                {{ department.name ?? '—' }}
+                <code>{{ department.depcode }}</code>
+              </span>
+            </label>
+          @end
+        </div>
+      @else
+        <p class="hint">
+          ยังไม่พบห้องตรวจ — รายชื่อจะขึ้นเองหลัง worker อ่านคิวรอบแรก
+          (ต้องตั้งค่าการเชื่อมต่อ HOSxP ให้เรียบร้อยก่อน)
+        </p>
+      @end
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </form>
+@end

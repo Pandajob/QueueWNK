@@ -1,0 +1,221 @@
+@component('layouts/main', { title: item ? 'แก้ไขเทมเพลต' : 'เพิ่มเทมเพลต', active: 'nt-templates' })
+
+  <p class="breadcrumb"><a href="{{ route('notify.templates') }}">← เทมเพลตข้อความ</a></p>
+
+  <h1>{{ item ? item.name : 'เพิ่มเทมเพลต' }}</h1>
+  <p class="subtitle">ข้อความนี้จะไปโผล่ในกลุ่ม LINE ตามที่ออกแบบไว้ทุกตัวอักษร</p>
+
+  <form method="POST"
+        action="{{ item ? route('notify.templates.update', { id: item.id }) : route('notify.templates.store') }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <div class="row">
+        <div class="field">
+          <label for="name">ชื่อ</label>
+          <input type="text" id="name" name="name" required
+                 value="{{ old('name', item?.name ?? '') }}" placeholder="เช่น สรุปยอดผู้ป่วยประจำวัน" />
+        </div>
+        <div class="field narrow">
+          <label for="key">ชื่อย่อ</label>
+          <input type="text" id="key" name="key" required pattern="[a-z0-9_]+"
+                 value="{{ old('key', item?.key ?? '') }}" placeholder="daily_summary" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>ประเภทข้อความ</label>
+        <div class="seg">
+          <label>
+            <input type="radio" name="messageType" value="text"
+                   {{ (item?.messageType ?? 'text') === 'text' ? 'checked' : '' }} />
+            <span>ข้อความธรรมดา</span>
+          </label>
+          <label>
+            <input type="radio" name="messageType" value="flex"
+                   {{ item?.messageType === 'flex' ? 'checked' : '' }} />
+            <span>การ์ด Flex</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="datasetId">ชุดข้อมูลหลัก</label>
+        <select id="datasetId" name="datasetId">
+          <option value="">— ไม่ใช้ —</option>
+          @each (dataset in datasets)
+            <option value="{{ dataset.id }}" {{ item?.datasetId === dataset.id ? 'selected' : '' }}>
+              {{ dataset.name }} ({{ dataset.key }})
+            </option>
+          @end
+        </select>
+        <p class="hint">
+          แถวแรกของชุดนี้กลายเป็นตัวยึด <code>&#123;ชื่อคอลัมน์&#125;</code> ใช้ได้ทั้งการ์ดและข้อความธรรมดา
+        </p>
+      </div>
+    </div>
+
+    {{-- ---------- ข้อความธรรมดา ---------- --}}
+    <div class="panel" id="text-mode">
+      <h2 class="panel-title">เนื้อความ</h2>
+      <div class="field">
+        <textarea id="body" name="body" rows="10">{{ old('body', item?.body ?? '') }}</textarea>
+      </div>
+    </div>
+
+    {{-- ---------- การ์ด Flex ---------- --}}
+    <div id="flex-mode">
+      <div class="panel">
+        <div class="template-head">
+          <h2 class="panel-title">โครงสร้างการ์ด</h2>
+          <div class="preset-picker">
+            <select id="preset">
+              <option value="">เริ่มจากโครงสำเร็จรูป…</option>
+              @each (preset in presets)
+                <option value="{{ preset.key }}">{{ preset.name }}</option>
+              @end
+            </select>
+            <button type="button" class="secondary" id="apply-preset">ใช้โครงนี้</button>
+          </div>
+        </div>
+
+        <div class="builder">
+          <div class="builder-list">
+            <div class="add-block">
+              <select id="new-block">
+                @each (block in blockTypes)
+                  <option value="{{ block.type }}">{{ block.label }}</option>
+                @end
+              </select>
+              <button type="button" class="secondary" id="add-block">+ เพิ่ม</button>
+            </div>
+            <ul id="block-list"></ul>
+            <p class="hint">กดที่บล็อกเพื่อแก้ · ▲▼ สลับตำแหน่ง · × ลบ</p>
+          </div>
+
+          <div class="builder-props">
+            <span class="side-title">คุณสมบัติ</span>
+            <div id="block-props"></div>
+          </div>
+
+          <div class="builder-preview">
+            <span class="side-title">ตัวอย่าง</span>
+            <div class="chat-preview">
+              <div class="flex-card" id="card-preview">
+                <p class="hint" style="padding: 14px">กด “ดูตัวอย่าง” เพื่อดึงข้อมูลจริงมาแสดง</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <input type="hidden" name="flexBlocks" id="flexBlocks"
+               value="{{ JSON.stringify(item?.flexBlocks ?? []) }}" />
+      </div>
+
+      <div class="panel">
+        <div class="row">
+          <div class="field">
+            <label for="altText">ข้อความย่อ (altText)</label>
+            <input type="text" id="altText" name="altText" maxlength="200"
+                   value="{{ old('altText', item?.altText ?? '') }}"
+                   placeholder="เช่น สรุปผู้รับบริการ {date}" />
+            <p class="hint">
+              สิ่งที่ LINE แสดงในรายการแชทและใน notification ก่อนเปิดการ์ด — การ์ดบังคับต้องมี
+            </p>
+          </div>
+          <div class="field narrow">
+            <label for="flexColor">สีหลักของการ์ด</label>
+            <input type="color" id="flexColor" name="flexColor"
+                   value="{{ old('flexColor', item?.flexColor ?? '#00857c') }}" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <label class="checkbox">
+        <input type="checkbox" name="isEnabled" value="1"
+               {{ item ? (item.isEnabled ? 'checked' : '') : 'checked' }} />
+        เปิดใช้งาน
+      </label>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+        <button type="button" class="secondary" id="preview-btn"
+                data-url="{{ item ? route('notify.templates.preview', { id: item.id }) : '' }}"
+                {{ item ? '' : 'disabled' }}>
+          ดูตัวอย่างข้อความจริง
+        </button>
+        @if (item)
+          <a class="button-link secondary-link"
+             href="{{ route('notify.templates.send.form', { id: item.id }) }}">ส่งเดี๋ยวนี้</a>
+        @end
+      </div>
+
+      <p class="hint" style="margin-top: 10px">
+        @if (item)
+          “ดูตัวอย่าง” ใช้ค่าที่กำลังกรอกอยู่ในฟอร์ม รันชุดข้อมูลจริงเพื่อเอาค่ามาเติม
+          แต่ไม่ส่งออกไปไหน
+        @else
+          บันทึกก่อนถึงจะดูตัวอย่างและส่งได้
+        @end
+      </p>
+
+      <div id="result"></div>
+    </div>
+  </form>
+
+  <div class="panel">
+    <h2 class="panel-title">ตัวยึดที่ใช้ได้</h2>
+    <table class="kv">
+      <tbody>
+        @each ((detail, key) in builtins)
+          <tr>
+            <th><code>&#123;{{ key }}&#125;</code></th>
+            <td>{{ detail }}</td>
+          </tr>
+        @end
+        <tr>
+          <th><code>&#123;ชื่อคอลัมน์&#125;</code></th>
+          <td>ค่าจากแถวแรกของชุดข้อมูลหลัก</td>
+        </tr>
+        <tr>
+          <th><code>&#123;each&#125;…&#123;/each&#125;</code></th>
+          <td>เฉพาะข้อความธรรมดา — วนทุกแถวของชุดข้อมูลหลัก</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="hint" style="margin-top: 12px">
+      ในการ์ด Flex บล็อก “รายการพร้อมแถบ” และ “รายการคู่” ดึงหลายแถวจากชุดข้อมูลที่เลือกไว้ในบล็อกนั้นเอง
+      จึงใช้คนละชุดกันในการ์ดเดียวได้ ส่วนช่องข้อความในบล็อกอื่นใช้ตัวยึดจากชุดข้อมูลหลัก
+    </p>
+  </div>
+
+  @if (item)
+    <div class="panel">
+      <h2 class="panel-title">ลบเทมเพลตนี้</h2>
+      <p class="hint">ถ้ามีตารางเวลาใช้อยู่ ระบบจะไม่ให้ลบจนกว่าจะลบตารางเวลาก่อน</p>
+      <form method="POST" action="{{ route('notify.templates.destroy', { id: item.id }) }}"
+            onsubmit="return confirm('ลบเทมเพลต {{ item.name }} ใช่หรือไม่')">
+        {{ csrfField() }}
+        <div class="actions">
+          <button type="submit" class="danger">ลบ</button>
+        </div>
+      </form>
+    </div>
+  @end
+
+  <script id="builder-data" type="application/json">
+    {{{ JSON.stringify({
+      blocks: item?.flexBlocks ?? [],
+      blockTypes: blockTypes,
+      alertWhen: alertWhen,
+      datasets: datasets.map((d) => ({ key: d.key, name: d.name })),
+      datasetColumns: datasetColumns,
+      presets: presets,
+    }) }}}
+  </script>
+
+  @include('partials/flex_builder_script')
+@end

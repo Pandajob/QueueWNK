@@ -1,0 +1,26 @@
+@component('layouts/main', { title: 'เข้าสู่ระบบ', chrome: false })
+  <div class="login-wrap">
+    <h1>เข้าสู่ระบบ</h1>
+    <p class="subtitle">ระบบแจ้งเตือนคิวผ่านหมอพร้อม</p>
+
+    <div class="panel">
+      <form method="POST" action="{{ route('login.submit') }}">
+        {{ csrfField() }}
+
+        <div class="field">
+          <label for="email">อีเมล</label>
+          <input type="email" id="email" name="email" value="{{ old('email', '') }}" required autofocus />
+        </div>
+
+        <div class="field">
+          <label for="password">รหัสผ่าน</label>
+          <input type="password" id="password" name="password" required />
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="primary">เข้าสู่ระบบ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+@end

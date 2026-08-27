@@ -1,0 +1,131 @@
+@component('layouts/main', { title: 'MOPH Notify', active: 'nt-dashboard' })
+
+  <h1>ภาพรวม MOPH Notify</h1>
+  <p class="subtitle">
+    ส่งข้อความเข้ากลุ่ม LINE ของเจ้าหน้าที่ — คนละระบบกับ MOPH Alert ที่ส่งหาผู้ป่วยรายคน
+  </p>
+
+  <div class="stat-grid">
+    <div class="stat">
+      <span class="label">ส่งสำเร็จวันนี้</span>
+      <span class="value ok">{{ today.sent }}</span>
+      <div class="sub">7 วัน {{ week.sent }} ครั้ง</div>
+    </div>
+    <div class="stat">
+      <span class="label">ล้มเหลววันนี้</span>
+      <span class="value {{ today.failed ? 'fail' : '' }}">{{ today.failed }}</span>
+      <div class="sub">7 วัน {{ week.failed }} ครั้ง</div>
+    </div>
+    <div class="stat">
+      <span class="label">กลุ่ม LINE</span>
+      <span class="value">{{ usableGroups }}</span>
+      <div class="sub">พร้อมใช้ จากทั้งหมด {{ groups.length }}</div>
+    </div>
+    <div class="stat">
+      <span class="label">ตารางเวลาที่เปิดอยู่</span>
+      <span class="value">{{ dueToday }}</span>
+      <div class="sub">จากทั้งหมด {{ schedules.length }} รอบ</div>
+    </div>
+    <div class="stat">
+      <span class="label">เคส 506 ใหม่วันนี้</span>
+      <span class="value {{ cdcuToday ? 'warn' : '' }}">{{ cdcuToday }}</span>
+      <div class="sub">{{ cdcu.isEnabled ? 'เฝ้าระวังอยู่' : 'ปิดการเฝ้าระวัง' }}</div>
+    </div>
+    <div class="stat">
+      <span class="label">เทมเพลต / ชุดข้อมูล</span>
+      <span class="value">{{ templateCount }} / {{ datasetCount }}</span>
+      <div class="sub">พร้อมนำไปตั้งรอบส่ง</div>
+    </div>
+  </div>
+
+  {{-- worker ของหมวดนี้แยกจาก worker คิว ถ้าไม่เดินตารางเวลาจะไม่ทำงานเลย --}}
+  <div class="panel {{ !heartbeat || heartbeat.isStale ? 'notice' : '' }}">
+    <h2 class="panel-title">worker ของ MOPH Notify</h2>
+    @if (!heartbeat)
+      <p class="hint">
+        ยังไม่เคยได้รับสัญญาณจาก <code>notify:watch</code> —
+        ตารางเวลาและการเฝ้าระวัง 506 จะยังไม่ทำงาน
+        ตรวจว่า service <code>notify</code> รันอยู่หรือไม่
+      </p>
+    @elseif (heartbeat.isStale)
+      <p class="hint danger">
+        ขาดการติดต่อ — สัญญาณสุดท้าย
+        {{ heartbeat.lastBeatAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm:ss') }}
+      </p>
+    @else
+      <p class="hint">
+        ทำงานปกติ · รอบที่ {{ heartbeat.cycles }} ·
+        สัญญาณล่าสุด {{ heartbeat.lastBeatAt.setZone('Asia/Bangkok').toFormat('HH:mm:ss') }}
+        @if (heartbeat.message)
+          <br />{{ heartbeat.message }}
+        @end
+      </p>
+    @end
+  </div>
+
+  @if (failing.length)
+    <div class="panel notice">
+      <h2 class="panel-title">ส่งไม่ผ่านล่าสุด</h2>
+      <table class="listing">
+        <tbody>
+          @each (row in failing)
+            <tr>
+              <td class="nowrap">{{ row.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM HH:mm') }}</td>
+              <td>{{ row.groupName }}</td>
+              <td>{{ row.error ?? '—' }}</td>
+              <td class="right"><a href="{{ route('notify.message', { id: row.id }) }}">ดู</a></td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+    </div>
+  @end
+
+  <div class="panel">
+    <div class="template-head">
+      <h2 class="panel-title">การส่งล่าสุด</h2>
+      <a href="{{ route('notify.history') }}">ดูทั้งหมด</a>
+    </div>
+
+    @if (recent.length)
+      <table class="listing">
+        <thead>
+          <tr>
+            <th>เวลา</th>
+            <th>กลุ่ม</th>
+            <th>ที่มา</th>
+            <th>เรื่อง</th>
+            <th>ผล</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @each (row in recent)
+            <tr>
+              <td class="nowrap">{{ row.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM HH:mm') }}</td>
+              <td>{{ row.groupName }}</td>
+              <td><span class="tag muted">{{ row.source }}</span></td>
+              <td>{{ row.subject ?? '—' }}</td>
+              <td><span class="tag {{ row.status }}">{{ row.status }}</span></td>
+              <td class="right"><a href="{{ route('notify.message', { id: row.id }) }}">ดู</a></td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+    @else
+      <p class="empty-state">ยังไม่มีการส่ง</p>
+    @end
+  </div>
+
+  @if (!groups.length)
+    <div class="panel notice">
+      <strong>เริ่มต้นใช้งาน</strong>
+      <p class="hint" style="margin-top: 6px">
+        ยังไม่มีกลุ่ม LINE สักกลุ่ม — เพิ่มกลุ่มก่อนถึงจะส่งอะไรได้
+      </p>
+      <div class="actions" style="margin-top: 12px">
+        <a class="button-link" href="{{ route('notify.groups.create') }}">เพิ่มกลุ่ม LINE</a>
+      </div>
+    </div>
+  @end
+@end

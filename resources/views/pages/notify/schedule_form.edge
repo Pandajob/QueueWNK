@@ -1,0 +1,153 @@
+@component('layouts/main', { title: item ? 'แก้ไขรอบส่ง' : 'เพิ่มรอบส่ง', active: 'nt-schedules' })
+
+  <p class="breadcrumb"><a href="{{ route('notify.schedules') }}">← ตารางเวลา</a></p>
+
+  <h1>{{ item ? item.name : 'เพิ่มรอบส่ง' }}</h1>
+  <p class="subtitle">เลือกเทมเพลต กลุ่มปลายทาง แล้วตั้งว่าจะส่งซ้ำเมื่อไร</p>
+
+  @if (!templates.length)
+    <div class="panel notice">
+      <strong>ยังไม่มีเทมเพลตที่เปิดใช้งาน</strong>
+      <p class="hint" style="margin-top: 6px">
+        ตารางเวลาต้องอ้างถึงเทมเพลต —
+        <a href="{{ route('notify.templates.create') }}">สร้างเทมเพลตก่อน</a>
+      </p>
+    </div>
+  @end
+
+  <form method="POST"
+        action="{{ item ? route('notify.schedules.update', { id: item.id }) : route('notify.schedules.store') }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <div class="field">
+        <label for="name">ชื่อรอบส่ง</label>
+        <input type="text" id="name" name="name" required
+               value="{{ old('name', item?.name ?? '') }}"
+               placeholder="เช่น สรุปยอดผู้ป่วยประจำวัน" />
+      </div>
+
+      <div class="field">
+        <label for="templateId">เทมเพลต</label>
+        <select id="templateId" name="templateId" required>
+          <option value="">— เลือก —</option>
+          @each (tpl in templates)
+            <option value="{{ tpl.id }}" {{ item?.templateId === tpl.id ? 'selected' : '' }}>
+              {{ tpl.name }}
+            </option>
+          @end
+        </select>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">รอบส่ง</h2>
+
+      <div class="row">
+        <div class="field">
+          <label for="frequency">ความถี่</label>
+          <select id="frequency" name="frequency">
+            <option value="daily" {{ (item?.frequency ?? 'daily') === 'daily' ? 'selected' : '' }}>ทุกวัน</option>
+            <option value="weekly" {{ item?.frequency === 'weekly' ? 'selected' : '' }}>รายสัปดาห์</option>
+            <option value="monthly" {{ item?.frequency === 'monthly' ? 'selected' : '' }}>รายเดือน</option>
+          </select>
+        </div>
+        <div class="field narrow">
+          <label for="runAt">เวลา</label>
+          <input type="time" id="runAt" name="runAt" required
+                 value="{{ old('runAt', item?.runAt ?? '08:00') }}" />
+          <p class="hint">
+            เทมเพลตแบบการ์ดเข้ากลุ่มช้าราว 20 นาที ตั้งเผื่อไว้ด้วย
+          </p>
+        </div>
+      </div>
+
+      <div class="field" id="weekly-box">
+        <label>วันในสัปดาห์</label>
+        <div class="check-grid tight">
+          @each (day in weekdays)
+            <label class="checkbox">
+              <input type="checkbox" name="daysOfWeek[]" value="{{ day.value }}"
+                     {{ (item?.daysOfWeek ?? []).includes(day.value) ? 'checked' : '' }} />
+              {{ day.label }}
+            </label>
+          @end
+        </div>
+      </div>
+
+      <div class="field narrow" id="monthly-box">
+        <label for="dayOfMonth">วันที่ของเดือน</label>
+        <input type="number" id="dayOfMonth" name="dayOfMonth" min="1" max="31"
+               value="{{ old('dayOfMonth', item?.dayOfMonth ?? 1) }}" />
+        <p class="hint">เดือนที่ไม่มีวันนั้นจะข้ามไป</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">กลุ่มปลายทาง</h2>
+
+      @if (groups.length)
+        <div class="check-grid">
+          @each (group in groups)
+            <label class="checkbox">
+              <input type="checkbox" name="groups[]" value="{{ group.id }}"
+                     {{ selectedGroups.includes(group.id) ? 'checked' : '' }} />
+              {{ group.name }}
+            </label>
+          @end
+        </div>
+      @else
+        <p class="hint">
+          ยังไม่มีกลุ่มที่เปิดใช้งาน —
+          <a href="{{ route('notify.groups.create') }}">เพิ่มกลุ่มก่อน</a>
+        </p>
+      @end
+    </div>
+
+    <div class="panel">
+      <label class="checkbox">
+        <input type="checkbox" name="isEnabled" value="1"
+               {{ item?.isEnabled ? 'checked' : '' }} />
+        <strong>เปิดใช้งานรอบส่งนี้</strong>
+      </label>
+      <p class="hint" style="margin-top: 6px">
+        เปิดแล้ว = ข้อความจะถูกส่งเข้ากลุ่มจริงตามเวลาที่ตั้งไว้ โดยไม่มีใครกดยืนยันอีก
+        แนะนำให้กด “ส่งเดี๋ยวนี้” ในหน้าเทมเพลตดูผลก่อนสักครั้ง
+      </p>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </form>
+
+  @if (item)
+    <div class="panel">
+      <h2 class="panel-title">ลบรอบส่งนี้</h2>
+      <form method="POST" action="{{ route('notify.schedules.destroy', { id: item.id }) }}"
+            onsubmit="return confirm('ลบรอบส่ง {{ item.name }} ใช่หรือไม่')">
+        {{ csrfField() }}
+        <div class="actions">
+          <button type="submit" class="danger">ลบ</button>
+        </div>
+      </form>
+    </div>
+  @end
+
+  <script>
+    // ซ่อนช่องที่ไม่เกี่ยวกับความถี่ที่เลือก ลดโอกาสกรอกผิดช่อง
+    ;(function () {
+      const frequency = document.getElementById('frequency')
+      const weekly = document.getElementById('weekly-box')
+      const monthly = document.getElementById('monthly-box')
+
+      function sync() {
+        weekly.style.display = frequency.value === 'weekly' ? '' : 'none'
+        monthly.style.display = frequency.value === 'monthly' ? '' : 'none'
+      }
+
+      frequency.addEventListener('change', sync)
+      sync()
+    })()
+  </script>
+@end

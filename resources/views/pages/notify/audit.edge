@@ -1,0 +1,87 @@
+@component('layouts/main', { title: 'ประวัติการแก้ไข', active: 'nt-audit' })
+
+  <h1>ประวัติการแก้ไข</h1>
+  <p class="subtitle">ใครแก้อะไรเมื่อไร — ค่าที่เป็นความลับถูกปิดบังไว้</p>
+
+  <div class="panel">
+    <div class="case-picker">
+      <a class="case-chip {{ entity === 'all' ? 'active' : '' }}" href="?entity=all">ทั้งหมด</a>
+      @each (row in entities)
+        <a class="case-chip {{ entity === row.entity ? 'active' : '' }}"
+           href="?entity={{ row.entity }}">{{ row.entity }} {{ row.total }}</a>
+      @end
+    </div>
+  </div>
+
+  <div class="panel">
+    @if (logs.all().length)
+      <table class="listing">
+        <thead>
+          <tr>
+            <th>เวลา</th>
+            <th>ผู้ใช้</th>
+            <th>การกระทำ</th>
+            <th>รายละเอียด</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          @each (log in logs)
+            <tr>
+              <td class="nowrap">
+                {{ log.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm:ss') }}
+              </td>
+              <td>{{ log.userEmail }}</td>
+              <td class="nowrap">
+                <span class="tag {{ log.action === 'delete' ? 'failed' : (log.action === 'create' ? 'sent' : 'muted') }}">
+                  {{ log.action }}
+                </span>
+                <div class="hint">{{ log.entity }}</div>
+              </td>
+              <td>
+                {{ log.summary }}
+                @if (log.changes)
+                  @each ((change, key) in log.changes)
+                    <div class="diff">
+                      <code>{{ key }}</code>
+                      <span class="from">{{ change.from === null ? '(ว่าง)' : String(change.from).slice(0, 60) }}</span>
+                      →
+                      <span class="to">{{ change.to === null ? '(ว่าง)' : String(change.to).slice(0, 60) }}</span>
+                    </div>
+                  @end
+                @end
+              </td>
+              <td class="nowrap hint">{{ log.ip ?? '—' }}</td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+
+      @if (logs.lastPage > 1)
+        <div class="pager">
+          @if (logs.currentPage > 1)
+            <a href="{{ logs.getUrl(logs.currentPage - 1) }}">← ก่อนหน้า</a>
+          @end
+          <span class="hint">หน้า {{ logs.currentPage }} / {{ logs.lastPage }}</span>
+          @if (logs.currentPage < logs.lastPage)
+            <a href="{{ logs.getUrl(logs.currentPage + 1) }}">ถัดไป →</a>
+          @end
+        </div>
+      @end
+    @else
+      <p class="empty-state">ยังไม่มีการแก้ไขที่บันทึกไว้</p>
+    @end
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">บันทึกอะไรบ้าง</h2>
+    <p class="hint">
+      การเพิ่ม แก้ไข ลบ เปิด/ปิด ของกลุ่ม LINE ชุดข้อมูล เทมเพลต ตารางเวลา
+      การตั้งค่า CDCU และการแจ้งเตือนทีมงาน รวมถึงการกดส่งเองและกดทดสอบส่ง
+      <br /><br />
+      ค่าในช่องที่ชื่อมีคำว่า key / secret / password / token
+      ถูกแทนด้วย <code>•••</code> ก่อนบันทึก — หน้านี้มีไว้ตอบว่าใครแตะอะไร
+      ไม่ใช่ที่เก็บ secret อีกชุดหนึ่ง
+    </p>
+  </div>
+@end

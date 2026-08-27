@@ -1,0 +1,119 @@
+@component('layouts/main', { title: 'แก้ไขข้อความ', active: 'templates' })
+  <h1>{{ definition.label }}</h1>
+  <p class="subtitle">
+    <a href="{{ route('templates.index') }}">← กลับไปรายการข้อความ</a>
+  </p>
+
+  <div class="panel">
+    <h2 class="panel-title">ตัวยึดที่ใช้ได้ในเคสนี้</h2>
+    <table class="listing">
+      <tbody>
+        @each (key in definition.placeholders)
+          <tr>
+            <td class="nowrap"><code>{{ '{' + key + '}' }}</code></td>
+            <td>{{ placeholderLabels[key] }}</td>
+          </tr>
+        @end
+      </tbody>
+    </table>
+    <p class="hint" style="margin-top: 10px">
+      ตัวยึดนอกรายการนี้จะถูกปฏิเสธตอนบันทึก เพราะเคสนี้ไม่มีข้อมูลให้แทนค่า
+      ถ้าปล่อยผ่าน ผู้ป่วยจะเห็นวงเล็บปีกกาติดไปในข้อความ
+    </p>
+  </div>
+
+  <form method="POST" action="{{ route('templates.update', { key: item.caseKey }) }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <h2 class="panel-title">ข้อความใน LINE</h2>
+
+      <div class="field">
+        <label for="header">หัวข้อข่าวสาร (Alt Text)</label>
+        <input type="text" id="header" name="header"
+               value="{{ old('header', item.header) }}" required />
+        <p class="hint">ข้อความที่ขึ้นในรายการแชทและ notification ของ LINE</p>
+      </div>
+
+      <div class="field">
+        <label for="lineText">ข้อความบนการ์ด</label>
+        <textarea id="lineText" name="lineText" rows="3" required>{{ old('lineText', item.lineText) }}</textarea>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ข้อความในแอปหมอพร้อม</h2>
+
+      <div class="field">
+        <label for="messageTitle">หัวข้อข้อความ</label>
+        <input type="text" id="messageTitle" name="messageTitle"
+               value="{{ old('messageTitle', item.messageTitle) }}" required />
+      </div>
+
+      <div class="field">
+        <label for="messageText">ชื่อรายการในกล่องข้อความ</label>
+        <input type="text" id="messageText" name="messageText"
+               value="{{ old('messageText', item.messageText) }}" required />
+      </div>
+
+      <div class="field">
+        <label for="messageHtml">เนื้อหา (HTML)</label>
+        <textarea id="messageHtml" name="messageHtml" rows="4" required>{{ old('messageHtml', item.messageHtml) }}</textarea>
+        <p class="hint">
+          ปลายทางไม่ได้สร้างเนื้อหาส่วนนี้จากข้อความด้านบนให้ ต้องเขียนซ้ำเอง
+        </p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ตัวเลือก</h2>
+
+      @if (definition.supportsUrl)
+        <div class="field">
+          <label for="checkUrl">ลิงก์ตรวจสอบคิว</label>
+          <input type="url" id="checkUrl" name="checkUrl"
+                 value="{{ old('checkUrl', item.checkUrl ?? '') }}"
+                 placeholder="เว้นว่าง = การ์ดไม่มีปุ่ม" />
+          <p class="hint">ใส่ลิงก์แล้วการ์ดจะมีปุ่ม “ตรวจสอบคิวล่าสุด”</p>
+        </div>
+      @end
+
+      @if (item.caseKey === 'queue_near')
+        <div class="field">
+          <label for="threshold">ส่งเมื่อเหลืออีกกี่คิว</label>
+          <input type="number" id="threshold" name="threshold" min="1" max="99"
+                 value="{{ old('threshold', item.threshold ?? 3) }}" />
+        </div>
+      @end
+
+      <div class="field">
+        <label class="checkbox">
+          <input type="checkbox" name="isEnabled" value="1"
+                 {{ item.isEnabled ? 'checked' : '' }} />
+          เปิดใช้งานเคสนี้
+        </label>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+        <a class="button-link secondary-link"
+           href="{{ route('test.index') }}?case={{ item.caseKey }}">ทดสอบส่ง</a>
+      </div>
+    </div>
+  </form>
+
+  <div class="panel">
+    <h2 class="panel-title">ตัวอย่างที่บันทึกไว้ล่าสุด</h2>
+    <p class="hint">แทนค่าด้วยข้อมูลสมมติ</p>
+
+    <table class="kv">
+      <tbody>
+        <tr><th>Alt Text</th><td>{{ preview.header }}</td></tr>
+        <tr><th>การ์ด LINE</th><td>{{ preview.lineText }}</td></tr>
+        <tr><th>หัวข้อในแอป</th><td>{{ preview.messageTitle }}</td></tr>
+        <tr><th>ชื่อรายการ</th><td>{{ preview.messageText }}</td></tr>
+        <tr><th>เนื้อหาในแอป</th><td><code class="block">{{ preview.messageHtml }}</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+@end

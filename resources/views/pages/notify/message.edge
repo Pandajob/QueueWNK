@@ -1,0 +1,49 @@
+@component('layouts/main', { title: 'รายละเอียดการส่ง', active: 'nt-history' })
+
+  <p class="breadcrumb"><a href="{{ route('notify.history') }}">← ประวัติการส่ง</a></p>
+
+  <h1>รายละเอียดการส่ง</h1>
+
+  <div class="panel">
+    <table class="kv">
+      <tbody>
+        <tr>
+          <th>เวลา</th>
+          <td>{{ item.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm:ss') }}</td>
+        </tr>
+        <tr><th>กลุ่ม</th><td>{{ item.groupName }}</td></tr>
+        <tr><th>ที่มา</th><td>{{ item.source }}</td></tr>
+        <tr><th>เรื่อง</th><td>{{ item.subject ?? '—' }}</td></tr>
+        <tr>
+          <th>ผล</th>
+          <td>
+            <span class="tag {{ item.status }}">{{ item.status }}</span>
+            @if (item.responseCode)
+              <span class="hint">ปลายทางตอบ {{ item.responseCode }}</span>
+            @end
+          </td>
+        </tr>
+        @if (item.sentAt)
+          <tr>
+            <th>ส่งเมื่อ</th>
+            <td>{{ item.sentAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm:ss') }}</td>
+          </tr>
+        @end
+        @if (item.error)
+          <tr><th>ข้อผิดพลาด</th><td class="hint danger">{{ item.error }}</td></tr>
+        @end
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">ข้อความตามที่ส่งออกไปจริง</h2>
+    <div class="chat-preview">
+      <div class="chat-bubble">{{ item.body }}</div>
+    </div>
+    <p class="hint" style="margin-top: 10px">
+      เก็บไว้ตามตอนที่ส่ง ไม่ได้อ้างอิงเทมเพลตปัจจุบัน — แก้เทมเพลตทีหลังแล้ว
+      ข้อความในหน้านี้จะไม่เปลี่ยนตาม
+    </p>
+  </div>
+@end

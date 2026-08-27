@@ -1,0 +1,46 @@
+@component('layouts/main', { title: 'จัดการผู้ใช้', active: 'users' })
+  <h1>ผู้ใช้</h1>
+  <p class="subtitle">ผู้ที่เข้าหน้าตั้งค่าได้ ทุกคนมีสิทธิ์เท่ากัน</p>
+
+  <div class="panel">
+    <table class="listing">
+      <thead>
+        <tr>
+          <th>ชื่อ</th>
+          <th>อีเมล</th>
+          <th>เพิ่มเมื่อ</th>
+          <th class="right">จัดการ</th>
+        </tr>
+      </thead>
+      <tbody>
+        @each (user in users)
+          <tr>
+            <td>
+              {{ user.fullName ?? '—' }}
+              @if (user.id === currentUserId)
+                <span class="badge">คุณ</span>
+              @end
+            </td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy') }}</td>
+            <td class="right nowrap">
+              <a href="{{ route('users.edit', { id: user.id }) }}">แก้ไข</a>
+              @if (user.id !== currentUserId && users.length > 1)
+                <form method="POST" action="{{ route('users.destroy', { id: user.id }) }}"
+                      class="inline"
+                      onsubmit="return confirm('ลบผู้ใช้ {{ user.email }} ใช่หรือไม่')">
+                  {{ csrfField() }}
+                  <button type="submit" class="link-danger">ลบ</button>
+                </form>
+              @end
+            </td>
+          </tr>
+        @end
+      </tbody>
+    </table>
+
+    <div class="actions">
+      <a class="button-link" href="{{ route('users.create') }}">เพิ่มผู้ใช้</a>
+    </div>
+  </div>
+@end

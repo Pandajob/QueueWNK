@@ -1,0 +1,465 @@
+@component('layouts/main', { title: 'เทียบเครื่องฐานข้อมูล', active: 'dbsync' })
+  <h1>เทียบเครื่องฐานข้อมูล</h1>
+  <p class="subtitle">
+    ถามเครื่องฐานข้อมูลทุกเครื่องด้วยคำถามเดียวกัน แล้วดูว่าตอบเหมือนกันไหม
+    ถ้าไม่เหมือนจะบอกทีมงานเข้ากลุ่ม LINE
+  </p>
+
+  @if (!connection)
+    <div class="panel notice">
+      <strong>ยังไม่ได้ตั้งค่าการเชื่อมต่อ HOSxP</strong>
+      <p class="hint" style="margin-top: 6px">
+        หน้านี้ใช้ user/รหัส/ชื่อฐานเดียวกับ
+        <a href="{{ route('settings.hosxp') }}">ฐานข้อมูล HOSxP</a> เปลี่ยนแค่ host
+        ต้องตั้งค่านั่นให้เสร็จก่อน
+      </p>
+    </div>
+  @end
+
+  @if (flashMessages.has('preview'))
+    <div class="panel">
+      <h2 class="panel-title">ข้อความที่จะเข้ากลุ่ม</h2>
+      <pre class="preview-box">{{ flashMessages.get('preview') }}</pre>
+    </div>
+  @end
+
+  {{-- ผลตรวจล่าสุด --}}
+  <div class="panel {{ lastReport && lastReport.shouldAlert ? 'notice' : '' }}">
+    <div class="template-head">
+      <h2 class="panel-title">ผลตรวจล่าสุด</h2>
+      @if (lastReport)
+        <span class="pill {{ lastReport.shouldAlert ? 'off' : 'on' }}">
+          {{ verdictLabels[lastReport.verdict] }}
+        </span>
+      @end
+    </div>
+
+    @if (!lastReport)
+      <p class="empty-state">ยังไม่เคยตรวจ — กดปุ่ม “ตรวจเดี๋ยวนี้” ด้านล่าง</p>
+    @else
+      <p class="status-line">
+        {{ lastReport.headline }} · ตรวจเมื่อ {{ checkedAtLabel }}
+      </p>
+
+      <div class="result-scroll" style="margin-top: 12px">
+        <table>
+          <thead>
+            <tr>
+              <th>รายการ</th>
+              @each (probe in lastReport.hosts)
+                <th class="right">
+                  {{ probe.label }}
+                  <br />
+                  <span class="hint">{{ probe.host }}</span>
+                </th>
+              @end
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>สถานะ</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">
+                  @if (!probe.ok)
+                    <span class="tag failed">ต่อไม่ได้</span>
+                  @elseif (probe.status === 'behind')
+                    <span class="tag muted">ตามหลัง</span>
+                  @else
+                    <span class="tag sent">ตรงกัน</span>
+                  @end
+                </td>
+              @end
+            </tr>
+            <tr>
+              <td>ชื่อเครื่อง</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">{{ probe.hostname ?? '—' }}</td>
+              @end
+            </tr>
+            <tr>
+              <td>server_id</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">{{ probe.serverId ?? '—' }}</td>
+              @end
+            </tr>
+            <tr>
+              <td>บทบาท</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">{{ probe.replication ? roleLabels[probe.replication.role] : '—' }}</td>
+              @end
+            </tr>
+            <tr>
+              <td>รับการเขียน</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">
+                  @if (probe.readOnly === null)
+                    —
+                  @elseif (probe.replication && probe.replication.writableReplica)
+                    <span class="tag warn">เขียนได้ทั้งที่เป็นตัวตาม</span>
+                  @else
+                    {{ probe.readOnly ? 'อ่านอย่างเดียว' : 'รับการเขียน' }}
+                  @end
+                </td>
+              @end
+            </tr>
+            <tr>
+              <td>สายรับข้อมูล</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">
+                  @if (!probe.replication || probe.replication.slaveRunning === null)
+                    —
+                  @elseif (probe.replication.slaveRunning)
+                    <span class="tag sent">เดินอยู่</span>
+                  @else
+                    <span class="tag failed">หยุด</span>
+                  @end
+                </td>
+              @end
+            </tr>
+            <tr>
+              <td>มีตัวตามต่ออยู่</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">
+                  {{ probe.replication ? (probe.replication.slavesConnected ?? '—') : '—' }}
+                </td>
+              @end
+            </tr>
+            <tr>
+              <td>
+                GTID
+                <br />
+                <span class="hint">ลำดับ transaction ล่าสุด</span>
+              </td>
+              @each (probe in lastReport.hosts)
+                <td class="right">
+                  <code>{{ probe.replication ? (probe.replication.gtidCurrent ?? '—') : '—' }}</code>
+                </td>
+              @end
+            </tr>
+            <tr>
+              <td>ตามหลัง (transaction)</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">
+                  @if (probe.gtidLag === null || probe.gtidLag === undefined)
+                    —
+                  @elseif (probe.gtidLag > 0)
+                    <span class="tag warn">{{ probe.gtidLag }}</span>
+                  @else
+                    <span class="tag sent">0</span>
+                  @end
+                </td>
+              @end
+            </tr>
+            <tr>
+              <td>นาฬิกาต่างจากเรา</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">
+                  {{ probe.clockSkewSeconds === null ? '—' : probe.clockSkewSeconds + ' วิ' }}
+                </td>
+              @end
+            </tr>
+
+            @each (metric in metrics)
+              <tr>
+                <td>
+                  {{ metric.label }}
+                  <br />
+                  <span class="hint"><code>{{ metric.table }}</code></span>
+                </td>
+                @each (probe in lastReport.hosts)
+                  <td class="right">
+                    @if (probe.counts[metric.key] === undefined || probe.counts[metric.key] === null)
+                      —
+                    @else
+                      {{ probe.counts[metric.key] }}
+                    @end
+                  </td>
+                @end
+              </tr>
+            @end
+
+            <tr>
+              <td>เวลาตอบ</td>
+              @each (probe in lastReport.hosts)
+                <td class="right">{{ probe.durationMs === null ? '—' : probe.durationMs + ' ms' }}</td>
+              @end
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      @each (probe in lastReport.hosts)
+        @if (!probe.ok && probe.error)
+          <p class="hint danger" style="margin-top: 10px">
+            <strong>{{ probe.host }}</strong> — {{ probe.error }}
+          </p>
+        @end
+      @end
+
+      @if (lastReport.lagSeconds)
+        <p class="hint" style="margin-top: 10px">
+          รายการล่าสุดของเครื่องที่ช้าที่สุดเก่ากว่าเครื่องที่เร็วที่สุด
+          {{ lastReport.lagSeconds }} วินาที
+        </p>
+      @end
+    @end
+
+    <div class="actions">
+      <form method="POST" action="{{ route('settings.dbsync.check') }}" style="display: inline">
+        {{ csrfField() }}
+        <button type="submit" class="primary">ตรวจเดี๋ยวนี้</button>
+      </form>
+      <form method="POST" action="{{ route('settings.dbsync.preview') }}" style="display: inline">
+        {{ csrfField() }}
+        <button type="submit" class="secondary">ดูข้อความที่จะส่ง</button>
+      </form>
+      <form method="POST" action="{{ route('settings.dbsync.send') }}" style="display: inline"
+            onsubmit="return confirm('ส่งผลตรวจเข้ากลุ่ม LINE จริงเลยไหม')">
+        {{ csrfField() }}
+        <button type="submit" class="secondary">ส่งเข้ากลุ่มเลย</button>
+      </form>
+    </div>
+  </div>
+
+  <form method="POST" action="{{ route('settings.dbsync.save') }}">
+    {{ csrfField() }}
+
+    {{-- เครื่องที่เฝ้า --}}
+    <div class="panel">
+      <h2 class="panel-title">เครื่องที่เฝ้า</h2>
+      <p class="hint" style="margin-bottom: 12px">
+        ช่อง user/รหัสเว้นว่างไว้ = ใช้ค่าเดียวกับหน้า
+        <a href="{{ route('settings.hosxp') }}">ฐานข้อมูล HOSxP</a>
+        (<code>{{ connection?.username ?? '—' }}</code> ฐาน <code>{{ connection?.database ?? '—' }}</code>)
+        · <strong>ล้างช่อง Host แล้วบันทึก = ลบเครื่องนั้นออก</strong>
+      </p>
+
+      @each ((row, index) in hosts)
+        <div class="row host-row">
+          <input type="hidden" name="hosts[{{ index }}][id]" value="{{ row.id }}" />
+          <div class="field">
+            <label for="h{{ index }}-label">ชื่อเรียก</label>
+            <input type="text" id="h{{ index }}-label" name="hosts[{{ index }}][label]"
+                   value="{{ row.label }}" />
+          </div>
+          <div class="field">
+            <label for="h{{ index }}-host">Host</label>
+            <input type="text" id="h{{ index }}-host" name="hosts[{{ index }}][host]"
+                   value="{{ row.host }}" />
+          </div>
+          <div class="field narrow">
+            <label for="h{{ index }}-port">Port</label>
+            <input type="number" id="h{{ index }}-port" name="hosts[{{ index }}][port]"
+                   value="{{ row.port }}" />
+          </div>
+          <div class="field">
+            <label for="h{{ index }}-user">User (ถ้าต่างจากค่าร่วม)</label>
+            <input type="text" id="h{{ index }}-user" name="hosts[{{ index }}][username]"
+                   value="{{ row.username ?? '' }}" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="h{{ index }}-pass">รหัสผ่าน</label>
+            <input type="password" id="h{{ index }}-pass" name="hosts[{{ index }}][password]"
+                   placeholder="{{ row.username ? '•••••• (ว่าง = ไม่เปลี่ยน)' : 'ว่าง = ใช้ค่าร่วม' }}"
+                   autocomplete="new-password" />
+          </div>
+          <div class="field narrow">
+            <label for="h{{ index }}-on">เฝ้า</label>
+            <select id="h{{ index }}-on" name="hosts[{{ index }}][enabled]">
+              <option value="1" {{ row.isEnabled ? 'selected' : '' }}>เฝ้า</option>
+              <option value="0" {{ row.isEnabled ? '' : 'selected' }}>พัก</option>
+            </select>
+          </div>
+        </div>
+        @if (row.lastCheckedAt)
+          <p class="hint" style="margin: -6px 0 14px">
+            ตรวจล่าสุด
+            {{ row.lastCheckedAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm') }} —
+            {{ row.lastNote ?? row.lastStatus }}
+          </p>
+        @end
+      @end
+
+      @each (index in blankIndexes)
+        <div class="row host-row">
+          <div class="field">
+            <label for="h{{ index }}-label">ชื่อเรียก</label>
+            <input type="text" id="h{{ index }}-label" name="hosts[{{ index }}][label]"
+                   placeholder="เช่น เครื่องสำรอง" />
+          </div>
+          <div class="field">
+            <label for="h{{ index }}-host">Host</label>
+            <input type="text" id="h{{ index }}-host" name="hosts[{{ index }}][host]"
+                   placeholder="IP ของเครื่องฐานข้อมูล" />
+          </div>
+          <div class="field narrow">
+            <label for="h{{ index }}-port">Port</label>
+            <input type="number" id="h{{ index }}-port" name="hosts[{{ index }}][port]" value="3306" />
+          </div>
+          <div class="field">
+            <label for="h{{ index }}-user">User (ถ้าต่างจากค่าร่วม)</label>
+            <input type="text" id="h{{ index }}-user" name="hosts[{{ index }}][username]"
+                   autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="h{{ index }}-pass">รหัสผ่าน</label>
+            <input type="password" id="h{{ index }}-pass" name="hosts[{{ index }}][password]"
+                   placeholder="ว่าง = ใช้ค่าร่วม" autocomplete="new-password" />
+          </div>
+          <div class="field narrow">
+            <label for="h{{ index }}-on">เฝ้า</label>
+            <select id="h{{ index }}-on" name="hosts[{{ index }}][enabled]">
+              <option value="1" selected>เฝ้า</option>
+              <option value="0">พัก</option>
+            </select>
+          </div>
+        </div>
+      @end
+    </div>
+
+    {{-- การแจ้งเตือน --}}
+    <div class="panel">
+      <h2 class="panel-title">การแจ้งเตือน</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="isEnabled" value="1" {{ settings.isEnabled ? 'checked' : '' }} />
+        <strong>เปิดการเฝ้าอัตโนมัติ</strong>
+      </label>
+
+      <div class="field" style="margin-top: 14px">
+        <label for="groupId">ส่งเข้ากลุ่ม</label>
+        <select id="groupId" name="groupId">
+          <option value="">— ยังไม่เลือก —</option>
+          @each (group in groups)
+            <option value="{{ group.id }}" {{ settings.groupId === group.id ? 'selected' : '' }}>
+              {{ group.name }}
+            </option>
+          @end
+        </select>
+        @if (!groups.length)
+          <p class="hint danger">
+            ยังไม่มีกลุ่ม — <a href="{{ route('notify.groups.create') }}">เพิ่มกลุ่มก่อน</a>
+          </p>
+        @end
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="checkEveryMinutes">ตรวจทุก</label>
+          <input type="number" id="checkEveryMinutes" name="checkEveryMinutes" min="1" max="1440"
+                 required value="{{ settings.checkEveryMinutes }}" />
+          <p class="hint">นาที</p>
+        </div>
+        <div class="field">
+          <label for="rowGapWarn">เตือนเมื่อจำนวนแถวต่างกันเกิน</label>
+          <input type="number" id="rowGapWarn" name="rowGapWarn" min="0" max="100000"
+                 required value="{{ settings.rowGapWarn }}" />
+          <p class="hint">แถว</p>
+        </div>
+        <div class="field">
+          <label for="lagWarnSeconds">หรือรายการล่าสุดห่างกันเกิน</label>
+          <input type="number" id="lagWarnSeconds" name="lagWarnSeconds" min="0" max="86400"
+                 required value="{{ settings.lagWarnSeconds }}" />
+          <p class="hint">วินาที</p>
+        </div>
+        <div class="field">
+          <label for="gtidLagWarn">หรือตามหลังเกิน</label>
+          <input type="number" id="gtidLagWarn" name="gtidLagWarn" min="0" max="10000000"
+                 required value="{{ settings.gtidLagWarn }}" />
+          <p class="hint">transaction (นับจาก GTID)</p>
+        </div>
+      </div>
+
+      <p class="hint">
+        <strong>ต่อไม่ได้</strong> · <strong>ข้อมูลแยกทางกัน</strong> ·
+        <strong>สายรับข้อมูลหยุดเดิน</strong> เตือนทันทีไม่ว่าตั้งเกณฑ์ไว้เท่าไร
+        — สามอย่างนี้ไม่ใช่เรื่องที่รอแล้วหายเอง
+      </p>
+
+      <div class="row" style="margin-top: 14px">
+        <div class="field">
+          <label for="throttleMinutes">ไม่เตือนเรื่องเดิมซ้ำภายใน</label>
+          <input type="number" id="throttleMinutes" name="throttleMinutes" min="1" max="1440"
+                 required value="{{ settings.throttleMinutes }}" />
+          <p class="hint">นาที · ถ้าอาการเปลี่ยนไปจะเตือนทันทีไม่รอครบ</p>
+        </div>
+        <div class="field">
+          <label for="digestAt">รายงานสรุปประจำวันเวลา</label>
+          <input type="time" id="digestAt" name="digestAt" value="{{ settings.digestAt ?? '' }}" />
+          <p class="hint">ว่าง = ไม่ส่ง</p>
+        </div>
+      </div>
+
+      <label class="checkbox">
+        <input type="checkbox" name="notifyOnRecover" value="1"
+               {{ settings.notifyOnRecover ? 'checked' : '' }} />
+        บอกด้วยเมื่อกลับมาตรงกันแล้ว
+      </label>
+
+      <p class="hint" style="margin-top: 10px">
+        รายงานประจำวันมีไว้แก้ปัญหา “เงียบแปลว่าอะไร” — ไม่มีข้อความเข้ามาเลยอาจแปลว่าปกติดี
+        หรือแปลว่าตัวเฝ้าตายไปแล้วก็ได้ มีข้อความวันละครั้งจะแยกสองอย่างนี้ออก
+      </p>
+    </div>
+
+    {{-- หน้าตาข้อความ --}}
+    <div class="panel">
+      <h2 class="panel-title">หน้าตาข้อความ</h2>
+
+      <div class="field">
+        <label for="messageStyle">ส่งเป็น</label>
+        <select id="messageStyle" name="messageStyle">
+          @each (style in messageStyles)
+            <option value="{{ style.value }}" {{ settings.messageStyle === style.value ? 'selected' : '' }}>
+              {{ style.label }}
+            </option>
+          @end
+        </select>
+      </div>
+
+      <div class="panel notice" style="margin: 14px 0">
+        <strong>การ์ดสวยกว่า แต่เข้ากลุ่มช้ากว่าราว 19 นาที</strong>
+        <p class="hint" style="margin-top: 6px">
+          ปลายทางมีคิวแยกกัน ข้อความธรรมดาเข้าภายในไม่กี่นาที ส่วนการ์ดถูกดองไว้
+          (ดูหัวข้อการ์ด Flex ใน README) — รายงานประจำวันช้า 19 นาทีไม่มีใครเดือดร้อน
+          แต่ <strong>“replication หยุดเดิน” ช้า 19 นาที คือข้อมูลแยกกันไปแล้วครึ่งชั่วโมง</strong>
+          ค่าตั้งต้นจึงเป็นการ์ดเฉพาะรายงานประจำวัน
+        </p>
+      </div>
+
+      <div class="field" style="max-width: 220px">
+        <label for="cardColor">สีการ์ด</label>
+        <input type="color" id="cardColor" name="cardColor" value="{{ settings.cardColor }}" />
+        <p class="hint">ใช้เป็นสีหัวการ์ดและสีเน้น</p>
+      </div>
+
+      <p class="hint">
+        กลุ่มที่ปิดสวิตช์ “รับการ์ดได้” ไว้จะได้ข้อความธรรมดาแทนโดยอัตโนมัติ ข้อมูลครบเหมือนกัน
+        — ตั้งที่ <a href="{{ route('notify.groups') }}">กลุ่ม LINE</a>
+      </p>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="panel">
+    <h2 class="panel-title">วัดจากอะไร</h2>
+    <p class="hint">
+      user ที่ระบบใช้มีสิทธิ์ <code>SELECT</code> อย่างเดียว อ่าน <code>SHOW SLAVE STATUS</code>
+      ไม่ได้ (ต้องมี <code>REPLICATION CLIENT</code>) และเราตั้งใจไม่ขอสิทธิ์เพิ่มกับฐานโรงพยาบาล
+      จึงวัดจากผลลัพธ์แทนกลไก คือนับแถวของวันนี้ในตารางที่ใช้งานจริงแล้วเอามาเทียบกัน
+      ซึ่งตอบคำถามที่อยากรู้จริง ๆ ว่า “ถ้าไปดูจากเครื่องนี้จะเห็นเท่ากันไหม”
+    </p>
+    <p class="hint" style="margin-top: 10px">
+      ทุกคำถามกรองด้วยช่วง <code>vn</code> ซึ่งเป็น primary key ใช้เวลาเครื่องละ 5–10 มิลลิวินาที
+      ไม่ได้กรองด้วย <code>vstdate</code> เพราะไม่มี index จะกลายเป็นสแกนทั้งตาราง
+    </p>
+    <p class="hint" style="margin-top: 10px">
+      <strong>ตามหลัง</strong> = เครื่องหนึ่งน้อยกว่าทุกตาราง เดี๋ยว replication ตามมาก็หาย ·
+      <strong>แยกทางกัน</strong> = ต่างเครื่องต่างมีของที่อีกเครื่องไม่มี รอไปไม่หายเอง
+      ต้องให้ DBA เข้ามาดู
+    </p>
+  </div>
+@end

@@ -1,0 +1,79 @@
+@component('layouts/main', { title: 'สถานะระบบ', active: 'status' })
+  <h1>สถานะระบบ</h1>
+  <p class="subtitle">ภาพรวมว่าแต่ละส่วนพร้อมทำงานหรือยัง</p>
+
+  <div class="tiles">
+    @each (tile in tiles)
+      <div class="tile {{ tile.state }}">
+        <div class="tile-head">
+          <span class="dot"></span>
+          <strong>{{ tile.title }}</strong>
+        </div>
+        <div class="tile-headline">{{ tile.headline }}</div>
+        @if (tile.detail)
+          <div class="tile-detail">{{ tile.detail }}</div>
+        @end
+        @if (tile.href)
+          <a class="tile-link" href="{{ tile.href }}">{{ tile.linkText ?? 'เปิด' }} →</a>
+        @end
+      </div>
+    @end
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">รายละเอียด</h2>
+
+    <table class="kv">
+      <tbody>
+        <tr>
+          <th>ผู้ใช้ในระบบ</th>
+          <td>
+            {{ userCount }} คน
+            <a href="{{ route('users.index') }}">จัดการ</a>
+          </td>
+        </tr>
+        <tr>
+          <th>HOSxP</th>
+          <td>
+            @if (hosxp)
+              {{-- ต่อสตริงเอง เพราะเครื่องหมาย at ที่ติดกับวงเล็บปีกกาคู่ เป็น syntax escape ของ Edge --}}
+              {{ hosxp.username + '@' + hosxp.host + ':' + hosxp.port + '/' + hosxp.database }}
+              · charset {{ hosxp.charset }}
+              @if (hosxp.lastTestedAt)
+                · ทดสอบล่าสุด {{ hosxp.lastTestedAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm') }}
+              @end
+            @else
+              ยังไม่ได้ตั้งค่า
+            @end
+          </td>
+        </tr>
+        <tr>
+          <th>MOPH Alert</th>
+          <td>
+            @if (moph)
+              {{ moph.baseUrl }}
+              @if (moph.lastTestedAt)
+                · ทดสอบล่าสุด {{ moph.lastTestedAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm') }}
+              @end
+            @else
+              ยังไม่ได้ตั้งค่า
+            @end
+          </td>
+        </tr>
+        <tr>
+          <th>worker</th>
+          <td>
+            @if (worker)
+              รายงานตัวล่าสุด
+              {{ worker.lastBeatAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm:ss') }}
+              · {{ worker.cycles }} รอบ
+              · ถือว่าขาดการติดต่อเมื่อเกิน {{ staleAfter }} วินาที
+            @else
+              ไม่เคยรายงานตัว
+            @end
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+@end

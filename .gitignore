@@ -1,0 +1,35 @@
+# Dependencies and AdonisJS build
+node_modules
+build
+tmp
+
+# Secrets
+.env
+.env.local
+.env.production.local
+.env.development.local
+
+# Frontend assets compiled code
+public/assets
+
+# Build tools specific
+npm-debug.log
+yarn-error.log
+
+# Editors specific
+.fleet
+.idea
+.vscode
+
+# การตั้งค่าเครื่องตัวเอง — มี path ในเครื่องคนใช้ ไม่ใช่ของโปรเจกต์
+.claude/settings.local.json
+
+# Platform specific
+.DS_Store
+
+# ผลสำรวจ schema — มีชื่อคอลัมน์และตัวอย่างข้อมูลของ รพ.
+docs/hosxp-schema.md
+
+# เอกสารที่ผู้ขายส่งมา — postman collection กับ PDF มี client-key/secret-key ของ UAT
+# ฝังอยู่แบบ plain text ทั้งคู่ ไม่เอาขึ้น repo เลยทั้งโฟลเดอร์
+docs/reference/

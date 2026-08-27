@@ -1,0 +1,86 @@
+@component('layouts/main', { title: 'รายการข้อมูล', active: 'nt-datasets' })
+
+  <div class="template-head">
+    <div>
+      <h1>รายการข้อมูล</h1>
+      <p class="subtitle">คำสั่งดึงข้อมูลจาก HOSxP ที่เอาไปเติมลงในข้อความได้</p>
+    </div>
+    <a class="button-link" href="{{ route('notify.datasets.create') }}">เพิ่มชุดข้อมูล</a>
+  </div>
+
+  <div class="panel notice">
+    <strong>อ่านอย่างเดียวเสมอ</strong>
+    <p class="hint" style="margin-top: 6px">
+      คำสั่งที่ใส่ตรงนี้วิ่งผ่านตัวต่อ HOSxP ตัวเดียวกับที่ระบบคิวใช้ ซึ่งรับเฉพาะ
+      <code>SELECT</code> / <code>SHOW</code> / <code>DESCRIBE</code> / <code>EXPLAIN</code> /
+      <code>WITH</code> และเปิดทีละคำสั่ง จึงเขียนอะไรลงฐานโรงพยาบาลไม่ได้
+      แต่<strong>อ่านหนักได้</strong> — คำสั่งที่สแกนทั้งตารางจะไปเพิ่มภาระเครื่องจริง
+      กด “ลองรัน” ดูเวลาที่ใช้ก่อนเอาไปตั้งรอบส่งทุกวัน
+    </p>
+  </div>
+
+  <div class="panel">
+    @if (datasets.length)
+      <table class="listing">
+        <thead>
+          <tr>
+            <th>ชื่อ</th>
+            <th>ชื่อย่อ</th>
+            <th>สถานะ</th>
+            <th>รันล่าสุด</th>
+            <th class="right">แถว</th>
+            <th class="right">เวลา</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @each (dataset in datasets)
+            <tr>
+              <td>
+                <strong>{{ dataset.name }}</strong>
+                @if (dataset.description)
+                  <div class="hint">{{ dataset.description }}</div>
+                @end
+                @if (dataset.lastError)
+                  <div class="hint danger">{{ dataset.lastError }}</div>
+                @end
+              </td>
+              <td><code>{{ dataset.key }}</code></td>
+              <td>
+                @if (dataset.isEnabled)
+                  <span class="tag sent">เปิด</span>
+                @else
+                  <span class="tag muted">ปิด</span>
+                @end
+              </td>
+              <td class="nowrap">
+                @if (dataset.lastRunAt)
+                  {{ dataset.lastRunAt.setZone('Asia/Bangkok').toFormat('dd/MM HH:mm') }}
+                @else
+                  —
+                @end
+              </td>
+              <td class="right">{{ dataset.lastRowCount ?? '—' }}</td>
+              <td class="right nowrap">
+                @if (dataset.lastDurationMs === null)
+                  —
+                @else
+                  <span class="{{ dataset.lastDurationMs > slowMs ? 'hint danger' : '' }}">
+                    {{ dataset.lastDurationMs }} ms
+                  </span>
+                @end
+              </td>
+              <td class="right nowrap">
+                <a href="{{ route('notify.datasets.edit', { id: dataset.id }) }}">แก้ไข</a>
+              </td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+    @else
+      <p class="empty-state">
+        ยังไม่มีชุดข้อมูล — เพิ่มได้เลย มีตัวอย่างให้กดใช้ในหน้าเพิ่ม
+      </p>
+    @end
+  </div>
+@end

@@ -1,0 +1,16 @@
+# node_modules ติดตั้งใหม่ใน image เสมอ (stage deps)
+# ถ้าส่งเข้า build context ด้วย symlink ใน .bin จะทำให้ build พังบน Windows
+node_modules
+build
+tmp
+.git
+
+# ความลับ — ส่งเข้า image ไม่ได้เด็ดขาด
+.env
+.env.local
+.env.*.local
+
+# เอกสารและเครื่องมือ ไม่จำเป็นตอน runtime
+docs
+tools
+.claude

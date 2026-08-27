@@ -1,0 +1,449 @@
+<script>
+  // ตัวแก้ไขการ์ด Flex
+  //
+  // สถานะทั้งหมดคือ array ของบล็อกในตัวแปร `blocks` ซึ่ง serialize ลง
+  // <input type="hidden" name="flexBlocks"> ทุกครั้งที่มีการเปลี่ยนแปลง
+  // ฝั่งเซิร์ฟเวอร์คัดฟิลด์ที่รู้จักอีกชั้นก่อนบันทึก (ดู parseBlocks)
+  //
+  // การวาดตัวอย่างไม่ได้ทำที่นี่ — POST ไปให้เซิร์ฟเวอร์ประกอบแล้วส่งโครงกลับมา
+  // จะได้ใช้ตัวประกอบตัวเดียวกับตอนส่งจริง ไม่ต้องเขียนตรรกะซ้ำสองที่แล้วเพี้ยนกัน
+  ;(function () {
+    const config = JSON.parse(document.getElementById('builder-data').textContent)
+    const hidden = document.getElementById('flexBlocks')
+    const listBox = document.getElementById('block-list')
+    const propsBox = document.getElementById('block-props')
+    const cardBox = document.getElementById('card-preview')
+
+    let blocks = Array.isArray(config.blocks) ? config.blocks : []
+    let selected = blocks.length ? 0 : -1
+
+    const labelOf = (type) =>
+      (config.blockTypes.find((b) => b.type === type) || {}).label || type
+
+    // ฟิลด์ของแต่ละชนิดบล็อก — ตัวเดียวที่ต้องแก้เวลาจะเพิ่มชนิดใหม่
+    const FIELDS = {
+      header: [
+        { name: 'title', label: 'หัวข้อ' },
+        { name: 'subtitle', label: 'บรรทัดรอง' },
+      ],
+      hero: [
+        { name: 'label', label: 'คำอธิบายด้านบน' },
+        { name: 'value', label: 'ตัวเลข' },
+        { name: 'unit', label: 'หน่วย' },
+        { name: 'caption', label: 'หมายเหตุใต้ตัวเลข' },
+      ],
+      bars: [
+        { name: 'title', label: 'หัวข้อกลุ่ม' },
+        { name: 'datasetKey', label: 'ชุดข้อมูล', kind: 'dataset' },
+        { name: 'labelColumn', label: 'คอลัมน์ป้าย', kind: 'column' },
+        { name: 'valueColumn', label: 'คอลัมน์ค่า', kind: 'column' },
+        {
+          name: 'alertWhen',
+          label: 'ทำสีแดงเมื่อ',
+          kind: 'alert',
+          hint:
+            'แดงเมื่อค่าเป็น 0 = แผนกที่อยากรู้ว่าวันนี้ไม่มีคนมา · ' +
+            'แดงเมื่อมากกว่า 0 = งานที่ค้างอยู่ ศูนย์คือเรื่องดี',
+        },
+      ],
+      rows: [
+        { name: 'title', label: 'หัวข้อกลุ่ม' },
+        { name: 'datasetKey', label: 'ชุดข้อมูล', kind: 'dataset' },
+        { name: 'labelColumn', label: 'คอลัมน์ป้าย', kind: 'column' },
+        { name: 'valueColumn', label: 'คอลัมน์ค่า', kind: 'column' },
+        {
+          name: 'alertWhen',
+          label: 'ทำสีแดงเมื่อ',
+          kind: 'alert',
+          hint:
+            'แดงเมื่อค่าเป็น 0 = แผนกที่อยากรู้ว่าวันนี้ไม่มีคนมา · ' +
+            'แดงเมื่อมากกว่า 0 = งานที่ค้างอยู่ ศูนย์คือเรื่องดี',
+        },
+      ],
+      text: [
+        { name: 'text', label: 'ข้อความ', kind: 'textarea' },
+        { name: 'tone', label: 'โทนสี', kind: 'tone' },
+      ],
+      divider: [],
+      button: [
+        { name: 'label', label: 'ข้อความบนปุ่ม' },
+        { name: 'url', label: 'ลิงก์ (http/https)' },
+      ],
+    }
+
+    function sync() {
+      hidden.value = JSON.stringify(blocks)
+    }
+
+    function summary(block) {
+      if (block.type === 'divider') return ''
+      return block.title || block.text || block.label || block.value || block.datasetKey || ''
+    }
+
+    function drawList() {
+      listBox.replaceChildren()
+
+      blocks.forEach((block, index) => {
+        const li = document.createElement('li')
+        li.className = 'block-item' + (index === selected ? ' active' : '')
+
+        const main = document.createElement('button')
+        main.type = 'button'
+        main.className = 'block-pick'
+
+        const name = document.createElement('strong')
+        name.textContent = labelOf(block.type)
+
+        const detail = document.createElement('span')
+        detail.textContent = summary(block).slice(0, 26)
+
+        main.append(name, detail)
+        main.addEventListener('click', function () {
+          selected = index
+          drawList()
+          drawProps()
+        })
+
+        const tools = document.createElement('span')
+        tools.className = 'block-tools'
+
+        for (const [text, delta] of [['▲', -1], ['▼', 1]]) {
+          const move = document.createElement('button')
+          move.type = 'button'
+          move.textContent = text
+          move.disabled = index + delta < 0 || index + delta >= blocks.length
+          move.addEventListener('click', function () {
+            const target = index + delta
+            ;[blocks[index], blocks[target]] = [blocks[target], blocks[index]]
+            selected = target
+            sync()
+            drawList()
+            drawProps()
+          })
+          tools.append(move)
+        }
+
+        const remove = document.createElement('button')
+        remove.type = 'button'
+        remove.textContent = '×'
+        remove.className = 'remove'
+        remove.addEventListener('click', function () {
+          blocks.splice(index, 1)
+          if (selected >= blocks.length) selected = blocks.length - 1
+          sync()
+          drawList()
+          drawProps()
+        })
+        tools.append(remove)
+
+        li.append(main, tools)
+        listBox.append(li)
+      })
+
+      if (!blocks.length) {
+        const empty = document.createElement('p')
+        empty.className = 'hint'
+        empty.textContent = 'ยังไม่มีบล็อก — เลือกชนิดแล้วกดเพิ่ม'
+        listBox.append(empty)
+      }
+    }
+
+    function columnsFor(datasetKey) {
+      return (config.datasetColumns || {})[datasetKey] || []
+    }
+
+    function drawProps() {
+      propsBox.replaceChildren()
+
+      if (selected < 0 || !blocks[selected]) {
+        const hint = document.createElement('p')
+        hint.className = 'hint'
+        hint.textContent = 'เลือกบล็อกทางซ้ายเพื่อแก้ไข'
+        propsBox.append(hint)
+        return
+      }
+
+      const block = blocks[selected]
+      const fields = FIELDS[block.type] || []
+
+      if (!fields.length) {
+        const hint = document.createElement('p')
+        hint.className = 'hint'
+        hint.textContent = labelOf(block.type) + ' ไม่มีอะไรให้ตั้งค่า'
+        propsBox.append(hint)
+        return
+      }
+
+      for (const field of fields) {
+        const wrap = document.createElement('div')
+        wrap.className = 'field'
+
+        const label = document.createElement('label')
+        label.textContent = field.label
+        wrap.append(label)
+
+        let input
+
+        if (field.kind === 'textarea') {
+          input = document.createElement('textarea')
+          input.rows = 4
+        } else if (field.kind === 'dataset') {
+          input = document.createElement('select')
+          input.append(new Option('— ไม่ใช้ —', ''))
+          for (const dataset of config.datasets) {
+            input.append(new Option(dataset.name + ' (' + dataset.key + ')', dataset.key))
+          }
+        } else if (field.kind === 'column') {
+          input = document.createElement('select')
+          input.append(new Option('— คอลัมน์แรก —', ''))
+          for (const column of columnsFor(block.datasetKey)) {
+            input.append(new Option(column, column))
+          }
+        } else if (field.kind === 'tone') {
+          input = document.createElement('select')
+          input.append(new Option('ปกติ', 'normal'), new Option('สีจาง', 'muted'), new Option('สีเตือน', 'warn'))
+        } else if (field.kind === 'alert') {
+          input = document.createElement('select')
+          for (const option of config.alertWhen) {
+            input.append(new Option(option.label, option.value))
+          }
+        } else {
+          input = document.createElement('input')
+          input.type = 'text'
+        }
+
+        input.value = block[field.name] || ''
+
+        input.addEventListener('input', function () {
+          block[field.name] = input.value
+          sync()
+          drawList()
+        })
+
+        // เปลี่ยนชุดข้อมูลแล้วรายการคอลัมน์ต้องเปลี่ยนตาม
+        if (field.kind === 'dataset') {
+          input.addEventListener('change', function () {
+            block.labelColumn = ''
+            block.valueColumn = ''
+            sync()
+            drawProps()
+          })
+        }
+
+        wrap.append(input)
+
+        if (field.hint) {
+          const note = document.createElement('p')
+          note.className = 'hint'
+          note.textContent = field.hint
+          wrap.append(note)
+        }
+
+        if (field.kind === 'column' && !columnsFor(block.datasetKey).length) {
+          const note = document.createElement('p')
+          note.className = 'hint'
+          note.textContent = 'ยังไม่รู้จักคอลัมน์ของชุดนี้ — กด “ลองรัน” ในหน้ารายการข้อมูลก่อน'
+          wrap.append(note)
+        }
+
+        propsBox.append(wrap)
+      }
+    }
+
+    // ---------- ตัวอย่างการ์ด ----------
+
+    function el(tag, className, text) {
+      const node = document.createElement(tag)
+      if (className) node.className = className
+      if (text !== undefined) node.textContent = text
+      return node
+    }
+
+    function drawCard(result) {
+      cardBox.replaceChildren()
+      cardBox.style.setProperty('--accent', result.accent || '#00857c')
+
+      if (result.messageType !== 'flex') {
+        const bubble = el('div', 'chat-bubble', result.body || '(ข้อความว่าง)')
+        cardBox.append(bubble)
+        return
+      }
+
+      const body = el('div', 'flex-body')
+
+      for (const block of result.blocks || []) {
+        if (block.kind === 'header') {
+          const head = el('div', 'flex-header')
+          head.append(el('strong', null, block.title))
+          if (block.subtitle) head.append(el('span', null, block.subtitle))
+          cardBox.append(head)
+          continue
+        }
+
+        if (block.kind === 'hero') {
+          const hero = el('div', 'flex-hero')
+          if (block.label) hero.append(el('span', 'flex-hero-label', block.label))
+          hero.append(el('strong', 'flex-hero-value', block.value || '-'))
+          if (block.unit) hero.append(el('span', 'flex-hero-unit', block.unit))
+          if (block.caption) hero.append(el('span', 'flex-hero-caption', block.caption))
+          body.append(hero)
+          continue
+        }
+
+        if (block.kind === 'bars' || block.kind === 'rows') {
+          if (block.title) body.append(el('div', 'flex-section', block.title))
+
+          for (const row of block.rows) {
+            const line = el('div', row.alert ? 'flex-row is-alert' : 'flex-row')
+            line.append(el('span', 'flex-row-label', row.label))
+
+            if (block.kind === 'bars') {
+              const track = el('span', 'flex-bar')
+              const fill = el('span', 'flex-bar-fill')
+              fill.style.width = Math.max(row.percent, 1) + '%'
+              track.append(fill)
+              line.append(track)
+            }
+
+            line.append(el('span', 'flex-row-value', row.value))
+            body.append(line)
+          }
+
+          if (!block.rows.length) {
+            body.append(el('p', 'hint', '(ชุดข้อมูลไม่มีแถว)'))
+          }
+          continue
+        }
+
+        if (block.kind === 'text') {
+          body.append(el('p', 'flex-text tone-' + block.tone, block.text))
+          continue
+        }
+
+        // ของจริงกลายเป็นการ์ดคนละใบ ตัวอย่างวาดต่อกันแต่คั่นให้เห็นว่าตัดตรงไหน
+        if (block.kind === 'pagebreak') {
+          body.append(el('div', 'flex-pagebreak', 'ขึ้นการ์ดใหม่'))
+          continue
+        }
+
+        if (block.kind === 'divider') {
+          body.append(el('hr', 'flex-divider'))
+          continue
+        }
+
+        if (block.kind === 'button') {
+          body.append(el('div', 'flex-button', block.label || 'เปิด'))
+        }
+      }
+
+      cardBox.append(body)
+    }
+
+    // ---------- สลับโหมด / preset / ปุ่มดูตัวอย่าง ----------
+
+    const textMode = document.getElementById('text-mode')
+    const flexMode = document.getElementById('flex-mode')
+    const bodyField = document.getElementById('body')
+    const altField = document.getElementById('altText')
+
+    function syncMode() {
+      const type = document.querySelector('input[name="messageType"]:checked').value
+      const isFlex = type === 'flex'
+      textMode.style.display = isFlex ? 'none' : ''
+      flexMode.style.display = isFlex ? '' : 'none'
+      // ช่องที่ซ่อนอยู่ต้องไม่ required ไม่งั้นเบราว์เซอร์ฟ้องช่องที่มองไม่เห็น
+      bodyField.required = !isFlex
+      altField.required = isFlex
+    }
+
+    for (const radio of document.querySelectorAll('input[name="messageType"]')) {
+      radio.addEventListener('change', syncMode)
+    }
+
+    document.getElementById('add-block').addEventListener('click', function () {
+      const type = document.getElementById('new-block').value
+      blocks.push({ type: type })
+      selected = blocks.length - 1
+      sync()
+      drawList()
+      drawProps()
+    })
+
+    document.getElementById('apply-preset').addEventListener('click', function () {
+      const key = document.getElementById('preset').value
+      if (!key) return
+
+      const preset = config.presets.find((p) => p.key === key)
+      if (!preset) return
+      if (blocks.length && !window.confirm('แทนที่โครงสร้างเดิมทั้งหมดใช่หรือไม่')) return
+
+      blocks = JSON.parse(JSON.stringify(preset.blocks))
+      selected = 0
+      sync()
+      drawList()
+      drawProps()
+    })
+
+    const previewBtn = document.getElementById('preview-btn')
+    const output = document.getElementById('result')
+
+    if (previewBtn && previewBtn.dataset.url) {
+      previewBtn.addEventListener('click', async function () {
+        previewBtn.disabled = true
+        const original = previewBtn.textContent
+        previewBtn.textContent = 'กำลังดึงข้อมูล…'
+
+        try {
+          const response = await fetch(previewBtn.dataset.url, {
+            method: 'POST',
+            body: new FormData(previewBtn.closest('form')),
+            headers: { Accept: 'application/json' },
+          })
+          const result = await response.json()
+
+          if (!result.ok) {
+            const bad = el('p', 'hint danger', result.error || 'สร้างตัวอย่างไม่สำเร็จ')
+            bad.style.marginTop = '12px'
+            output.replaceChildren(bad)
+            return
+          }
+
+          drawCard(result)
+
+          const parts = []
+          const meta = el('p', 'hint', 'ชุดข้อมูลหลักคืนมา ' + result.rows + ' แถว')
+          meta.style.marginTop = '12px'
+          parts.push(meta)
+
+          if (result.messageType !== 'flex') {
+            const wrap = el('div', 'chat-preview')
+            wrap.append(el('div', 'chat-bubble', result.body || '(ข้อความว่าง)'))
+            parts.unshift(wrap)
+          }
+
+          if (result.missing && result.missing.length) {
+            parts.push(
+              el(
+                'p',
+                'hint danger',
+                'ตัวยึดที่ไม่มีค่าให้: ' + result.missing.map((n) => '{' + n + '}').join(' ')
+              )
+            )
+          }
+
+          output.replaceChildren(...parts)
+        } catch (error) {
+          output.replaceChildren(el('p', 'hint danger', String(error)))
+        } finally {
+          previewBtn.disabled = false
+          previewBtn.textContent = original
+        }
+      })
+    }
+
+    syncMode()
+    sync()
+    drawList()
+    drawProps()
+  })()
+</script>

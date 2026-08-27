@@ -1,0 +1,45 @@
+@component('layouts/main', { title: 'ข้อความแจ้งเตือน', active: 'templates' })
+  <h1>ข้อความแจ้งเตือน</h1>
+  <p class="subtitle">
+    แก้ข้อความที่ผู้ป่วยจะเห็นในแต่ละเคส ใช้ตัวยึดเช่น <code>{queue_no}</code>
+    แทนค่าจริงตอนส่ง
+  </p>
+
+  {{-- ห้ามใช้ชื่อ template เป็นตัวแปร มันชนกับตัวแปรภายในของ Edge --}}
+  @each (item in templates)
+    <div class="panel">
+      <div class="template-head">
+        <div>
+          <h2 class="panel-title">{{ cases[item.caseKey].label }}</h2>
+          <p class="hint">{{ cases[item.caseKey].description }}</p>
+        </div>
+        <span class="pill {{ item.isEnabled ? 'on' : 'off' }}">
+          {{ item.isEnabled ? 'เปิดใช้งาน' : 'ปิดอยู่' }}
+        </span>
+      </div>
+
+      <div class="preview-line">{{ item.lineText }}</div>
+
+      <div class="template-meta">
+        @if (item.checkUrl)
+          <span>มีปุ่มตรวจสอบคิว → {{ item.checkUrl }}</span>
+        @else
+          <span>ไม่มีปุ่มตรวจสอบคิว</span>
+        @end
+        @if (item.threshold)
+          <span>· ส่งเมื่อเหลือ ≤ {{ item.threshold }} คิว</span>
+        @end
+      </div>
+
+      <div class="actions">
+        <a class="button-link" href="{{ route('templates.edit', { key: item.caseKey }) }}">
+          แก้ไขข้อความ
+        </a>
+        <a class="button-link secondary-link"
+           href="{{ route('test.index') }}?case={{ item.caseKey }}">
+          ทดสอบส่งเคสนี้
+        </a>
+      </div>
+    </div>
+  @end
+@end

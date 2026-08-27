@@ -1,0 +1,88 @@
+@component('layouts/main', { title: 'ประวัติการส่ง', active: 'nt-history' })
+
+  <h1>ประวัติการส่ง</h1>
+  <p class="subtitle">
+    ทุกข้อความที่ระบบส่งเข้ากลุ่ม LINE ทั้งที่สำเร็จและไม่สำเร็จ
+  </p>
+
+  <div class="panel">
+    <div class="case-picker" style="margin-bottom: 12px">
+      <a class="case-chip {{ status === 'all' ? 'active' : '' }}"
+         href="?status=all&source={{ source }}">ทั้งหมด {{ (summary.sent ?? 0) + (summary.failed ?? 0) + (summary.skipped ?? 0) }}</a>
+      <a class="case-chip {{ status === 'sent' ? 'active' : '' }}"
+         href="?status=sent&source={{ source }}">สำเร็จ {{ summary.sent ?? 0 }}</a>
+      <a class="case-chip {{ status === 'failed' ? 'active' : '' }}"
+         href="?status=failed&source={{ source }}">ล้มเหลว {{ summary.failed ?? 0 }}</a>
+      <a class="case-chip {{ status === 'skipped' ? 'active' : '' }}"
+         href="?status=skipped&source={{ source }}">ข้าม {{ summary.skipped ?? 0 }}</a>
+    </div>
+
+    <div class="case-picker">
+      @each (item in [
+        { key: 'all', label: 'ทุกที่มา' },
+        { key: 'schedule', label: 'ตารางเวลา' },
+        { key: 'cdcu', label: 'CDCU' },
+        { key: 'ops', label: 'สถานะระบบ' },
+        { key: 'dbsync', label: 'เทียบฐานข้อมูล' },
+        { key: 'manual', label: 'ส่งเอง' },
+      ])
+        <a class="case-chip {{ source === item.key ? 'active' : '' }}"
+           href="?status={{ status }}&source={{ item.key }}">{{ item.label }}</a>
+      @end
+    </div>
+  </div>
+
+  <div class="panel">
+    @if (messages.all().length)
+      <table class="listing">
+        <thead>
+          <tr>
+            <th>เวลา</th>
+            <th>กลุ่ม</th>
+            <th>ที่มา</th>
+            <th>เรื่อง</th>
+            <th>ข้อความ</th>
+            <th>ผล</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @each (row in messages)
+            <tr>
+              <td class="nowrap">
+                {{ row.createdAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm') }}
+              </td>
+              <td>{{ row.groupName }}</td>
+              <td><span class="tag muted">{{ row.source }}</span></td>
+              <td>{{ row.subject ?? '—' }}</td>
+              <td>
+                {{ row.body.replace(/\s+/g, ' ').slice(0, 60) }}{{ row.body.length > 60 ? '…' : '' }}
+              </td>
+              <td class="nowrap">
+                <span class="tag {{ row.status }}">{{ row.status }}</span>
+                @if (row.error)
+                  <div class="hint danger">{{ row.error.slice(0, 60) }}</div>
+                @end
+              </td>
+              <td class="right"><a href="{{ route('notify.message', { id: row.id }) }}">ดู</a></td>
+            </tr>
+          @end
+        </tbody>
+      </table>
+
+      @if (messages.lastPage > 1)
+        <div class="pager">
+          @if (messages.currentPage > 1)
+            <a href="{{ messages.getUrl(messages.currentPage - 1) }}">← ก่อนหน้า</a>
+          @end
+          <span class="hint">หน้า {{ messages.currentPage }} / {{ messages.lastPage }}</span>
+          @if (messages.currentPage < messages.lastPage)
+            <a href="{{ messages.getUrl(messages.currentPage + 1) }}">ถัดไป →</a>
+          @end
+        </div>
+      @end
+    @else
+      <p class="empty-state">ไม่มีรายการที่ตรงกับตัวกรอง</p>
+    @end
+  </div>
+@end

@@ -1,0 +1,86 @@
+@component('layouts/main', { title: 'MOPH CCM', active: 'ccm' })
+  <h1>MOPH CCM</h1>
+  <p class="subtitle">ระบบบรอดแคสต์ของหมอพร้อม — ส่งข่าวเป็นกลุ่มถึงผู้ป่วยผ่าน LINE OA</p>
+
+  <div class="panel notice">
+    <strong>ส่วนนี้ยังไม่ได้ต่อ API</strong>
+    <p class="hint" style="margin-top: 6px">
+      หน้านี้อธิบายว่า CCM ทำอะไรได้บ้าง เพื่อให้เห็นภาพว่าจะสร้างอะไรต่อ
+      ยังไม่มีการเชื่อมต่อจริงและยังไม่มีข้อมูลใดถูกส่งออกไป
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">ต่างจาก Alert และ Notify ยังไง</h2>
+    <table class="listing">
+      <thead>
+        <tr><th>ระบบ</th><th>ส่งถึงใคร</th><th>สั่งจากโค้ดได้ไหม</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Alert</strong></td>
+          <td>ผู้ป่วยรายคน ระบุด้วยเลขบัตรประชาชน</td>
+          <td><span class="tag sent">ได้ทันที</span></td>
+        </tr>
+        <tr>
+          <td><strong>Notify</strong></td>
+          <td>กลุ่มแชท LINE ของเจ้าหน้าที่</td>
+          <td><span class="tag sent">ได้ทันที</span></td>
+        </tr>
+        <tr>
+          <td><strong>CCM</strong></td>
+          <td>ผู้ป่วยเป็นกลุ่มก้อน (บรอดแคสต์)</td>
+          <td><span class="tag warn">ได้แค่ครึ่งเดียว</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">API ที่ CCM เปิดให้โรงพยาบาลเรียก มีอันเดียว</h2>
+
+    <div class="payload-box">
+      <div class="payload-head">POST https://morpromt2d.moph.go.th/api/segment</div>
+      <pre>{
+  "client_key": "…",
+  "secret_key": "…",
+  "name": "ชื่อกลุ่มเป้าหมาย",
+  "cid": ["…", "…"],
+  "h_code": "รหัสหน่วยบริการ"
+}</pre>
+    </div>
+
+    <p class="hint" style="margin-top: 12px">
+      สังเกตว่า key อยู่<strong>ใน body</strong> ไม่ใช่ header — คนละแบบกับ Alert และ Notify
+      และจำกัด cid ไม่เกิน 10,000 รายต่อครั้ง
+    </p>
+
+    <p class="hint">
+      <strong>ยิง API แล้วจบแค่นั้น</strong> — API สร้างได้แค่ “กลุ่มเป้าหมาย”
+      ตัวข้อความต้องมีคนเข้าไปเขียนใน CMS แล้วผ่านสายอนุมัติ
+      Admin LV3 สร้าง → LV2 ตรวจ → LV1 อนุมัติ → ถึงจะบรอดแคสต์หรือตั้งเวลา
+      และมีโควตารายเดือน หมดแล้วรายการจะตกไปอยู่แท็บ “เกิดข้อผิดพลาด”
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2 class="panel-title">ถ้าจะสร้างต่อ จะมีอะไรบ้าง</h2>
+    <ol class="hint" style="padding-left: 20px; line-height: 2">
+      <li><strong>ตั้งค่า</strong> — client_key / secret_key / h_code เก็บเข้ารหัสเหมือนที่อื่น</li>
+      <li>
+        <strong>สร้างกลุ่มเป้าหมาย</strong> — เลือกชุดข้อมูลจากเมนู
+        <a href="{{ route('notify.datasets') }}">รายการข้อมูล</a>
+        ที่คืนคอลัมน์ <code>cid</code> แล้วส่งเข้า MOPH เป็น segment
+      </li>
+      <li><strong>ประวัติการสร้าง</strong> — ส่งไปกี่ราย เมื่อไร ใครกด ผลเป็นอย่างไร</li>
+      <li><strong>ลิงก์ไป CMS</strong> — สำหรับเขียนข้อความและติดตามสถานะอนุมัติ</li>
+    </ol>
+
+    <p class="hint danger" style="margin-top: 12px">
+      ข้อ 2 คือการส่ง<strong>เลขบัตรประชาชนของผู้ป่วยออกไปนอกโรงพยาบาล</strong>
+      ต่างจาก Alert ที่ส่งทีละคนตอนผู้ป่วยมารับบริการจริง
+      ผมยังไม่สร้างส่วนนี้จนกว่าจะได้รับคำยืนยัน เพราะเป็นการตัดสินใจเชิงนโยบายของโรงพยาบาล
+      ไม่ใช่เรื่องทางเทคนิค
+    </p>
+  </div>
+@end

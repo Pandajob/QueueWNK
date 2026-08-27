@@ -1,0 +1,17 @@
+@component('layouts/main', { title: 'ตั้งค่า', active: 'settings' })
+  <h1>ตั้งค่า</h1>
+  <p class="subtitle">ทุกอย่างที่ปรับได้ อยู่ที่นี่</p>
+
+  <div class="settings-list">
+    @each (card in cards)
+      <a class="settings-card" href="{{ card.href }}">
+        <span class="dot {{ card.state }}"></span>
+        <span class="settings-body">
+          <strong>{{ card.title }}</strong>
+          <span class="settings-desc">{{ card.description }}</span>
+        </span>
+        <span class="settings-status">{{ card.status }}</span>
+      </a>
+    @end
+  </div>
+@end
