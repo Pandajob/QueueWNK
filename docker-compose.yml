@@ -28,10 +28,13 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     environment:
-      MARIADB_ROOT_PASSWORD: queuewnk-root
-      MARIADB_DATABASE: queuewnk
-      MARIADB_USER: queuewnk
-      MARIADB_PASSWORD: queuewnk
+      # อ่านจาก .env ให้ตรงกับที่แอปใช้ต่อ ไม่งั้นคนที่ก๊อป .env.example มาแล้วตั้งรหัสเอง
+      # จะได้ฐานที่สร้างด้วยรหัสหนึ่ง แต่แอปต่อด้วยอีกรหัสหนึ่ง แล้วงงว่าทำไมต่อไม่ติด
+      # ค่าหลัง :- คือค่าตั้งต้นตอนพัฒนา ไม่ต้องตั้งอะไรก็รันได้
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-queuewnk-root}
+      MARIADB_DATABASE: ${DB_DATABASE:-queuewnk}
+      MARIADB_USER: ${DB_USER:-queuewnk}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-queuewnk}
       TZ: Asia/Bangkok
     volumes:
       - dbdata:/var/lib/mysql
@@ -49,7 +52,7 @@ services:
     <<: *app
     command: npm run dev
     ports:
-      - "3333:3333"
+      - "${WEB_PORT:-3333}:3333"
 
   # poller — อ่าน HOSxP แล้วส่งแจ้งเตือน
   # ต้อง 1 instance เท่านั้น ไม่งั้นส่งซ้ำ (มี GET_LOCK กันอีกชั้นในโค้ด)

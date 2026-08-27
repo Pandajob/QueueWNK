@@ -113,8 +113,6 @@ git clone <URL ของ repo> queuewnk && cd queuewnk
 cp .env.example .env
 ```
 
-ตั้ง `NODE_ENV=development` ใน `.env` ถ้าจะใช้เป็นเครื่องพัฒนา
-
 ### 2. สร้าง APP_KEY
 
 **ข้ามขั้นนี้ไม่ได้** — `APP_KEY` คือกุญแจที่ใช้เข้ารหัสรหัสผ่าน HOSxP และ secret ของ MOPH
