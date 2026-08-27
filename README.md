@@ -27,7 +27,76 @@
 
 ## ติดตั้ง
 
-ต้องมี **Docker** กับ **git** เท่านั้น ไม่ต้องลง Node หรือ MariaDB ลงเครื่อง
+เลือกทางใดทางหนึ่ง
+
+| | เหมาะกับ | ต้องมี |
+| --- | --- | --- |
+| **[แบบ ก — รัน image สำเร็จรูป](#แบบ-ก--รัน-image-สำเร็จรูป)** | โรงพยาบาลที่อยากใช้งาน ไม่ได้จะแก้โค้ด | Docker |
+| **[แบบ ข — จากซอร์ส](#แบบ-ข--ติดตั้งจากซอร์ส)** | คนที่จะแก้โค้ดหรือส่ง PR กลับ | Docker + git |
+
+**ไม่แน่ใจให้เลือกแบบ ก** ย้ายไปแบบ ข ทีหลังได้ตลอดโดยไม่ต้องติดตั้งใหม่ (ฐานข้อมูลอยู่ใน volume แยก)
+
+> ⚠️ **ข้อยกเว้นที่ต้องรู้ก่อนเลือก** — ระบบอ่านคิวจากตาราง `ovst_queue_server` แบบตายตัว
+> โรงพยาบาลที่ไม่ได้ใช้ HOSxP Queue Server **ต้องแก้ SQL เอง จึงต้องใช้แบบ ข**
+> ตรวจก่อนได้ด้วยขั้นตอนใน [สำรวจฐานของตัวเองก่อน](#5-สำรวจฐานของโรงพยาบาลตัวเองก่อน)
+
+---
+
+## แบบ ก — รัน image สำเร็จรูป
+
+ไม่ต้องมีซอร์ส ไม่ต้อง build ไม่ต้องลง Node ใช้แค่สองไฟล์
+
+โหลด [`compose.prod.yml`](compose.prod.yml) กับ [`.env.example`](.env.example) จากหน้า repo
+มาไว้ในโฟลเดอร์เดียวกัน แล้ว
+
+```bash
+cp .env.example .env
+```
+
+แก้ `.env` — ตั้ง `DB_PASSWORD` กับ `DB_ROOT_PASSWORD` เป็นรหัสของตัวเอง
+(สแตกจะไม่ยอมสตาร์ตถ้ายังเว้นไว้) แล้วสร้าง `APP_KEY`
+
+```bash
+docker compose -f compose.prod.yml run --rm web node ace generate:key
+```
+
+คัดค่าที่ได้ไปใส่ `APP_KEY=` ใน `.env` — อ่านคำเตือนเรื่องกุญแจนี้ใน[หัวข้อถัดไป](#2-สร้าง-app_key)ด้วย
+
+```bash
+docker compose -f compose.prod.yml up -d
+```
+
+```bash
+docker compose -f compose.prod.yml exec web node ace migration:run --force
+```
+
+```bash
+docker compose -f compose.prod.yml exec web node ace admin:create you@hospital.go.th 'รหัสผ่านอย่างน้อย8ตัว' 'ชื่อ นามสกุล'
+```
+
+เปิด http://localhost:3333 แล้วไปทำ[ขั้นที่ 4](#4-สร้าง-user-อ่านอย่างเดียวบน-hosxp)เป็นต้นไป
+
+### อัปเดต (แบบ ก)
+
+```bash
+docker compose -f compose.prod.yml pull && docker compose -f compose.prod.yml up -d
+```
+
+```bash
+docker compose -f compose.prod.yml exec web node ace migration:run --force
+```
+
+จบ ไม่มีขั้นตอน restart ให้ลืม เพราะ `up -d` สร้าง container ใหม่จาก image ใหม่ให้เอง
+
+> เปลี่ยนเลขรุ่นที่จะใช้ได้ที่ `QUEUEWNK_IMAGE` ใน `.env`
+> **ยึดเลขรุ่นไว้ อย่าใช้ `latest`** จะได้รู้ว่าตอนนี้รันตัวไหน และย้อนกลับได้เวลามีปัญหา
+> ดูว่ารุ่นใหม่เปลี่ยนอะไรที่ [CHANGELOG.md](CHANGELOG.md) ก่อนอัปเดตเสมอ
+
+---
+
+## แบบ ข — ติดตั้งจากซอร์ส
+
+ต้องมี **Docker** กับ **git** ไม่ต้องลง Node หรือ MariaDB ลงเครื่อง
 
 ### 1. ดึงโค้ดและตั้งค่าพื้นฐาน
 
@@ -38,6 +107,8 @@ git clone <URL ของ repo> queuewnk && cd queuewnk
 ```bash
 cp .env.example .env
 ```
+
+ตั้ง `NODE_ENV=development` ใน `.env` ถ้าจะใช้เป็นเครื่องพัฒนา
 
 ### 2. สร้าง APP_KEY
 
@@ -110,7 +181,7 @@ docker compose exec web node ace hosxp:probe-queue
 ตั้งต้น dry run เปิดอยู่และปิดทุกห้อง เปิดทีละห้องแล้วดูใน `/log` ว่าเลขคิวตรงกับบัตรคิวจริงไหม
 ก่อนปิด dry run
 
-## อัปเดตเป็นเวอร์ชันใหม่
+## อัปเดต (แบบ ข)
 
 ```bash
 git pull

@@ -1,0 +1,71 @@
+# สร้าง image สำเร็จรูปแล้วส่งขึ้น GitHub Container Registry
+# โรงพยาบาลปลายทางจะได้ docker compose pull มารันได้เลย ไม่ต้อง build เอง
+#
+# สั่งให้ทำงานด้วยการ push tag เลขรุ่น
+#   git tag -a v0.1.1 -m "..." && git push origin v0.1.1
+#
+# ผลลัพธ์คือ ghcr.io/<เจ้าของ repo>/queuewnk:0.1.1 (และ :0.1 กับ :latest)
+# image เป็น public หรือ private ตาม repo — เปลี่ยนได้ที่หน้า Packages ของ repo
+
+name: ออกรุ่นและส่ง image
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # ให้ GitHub เซ็นรับรองว่า image นี้สร้างจาก commit ไหนจริง ๆ
+      # โรงพยาบาลปลายทางตรวจได้ว่าไม่ได้ถูกสลับกลางทาง
+      id-token: write
+      attestations: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: ล็อกอินเข้า GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ตั้งชื่อ tag ของ image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: build แล้ว push
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: production
+          # amd64 คือเครื่องเซิร์ฟเวอร์ทั่วไป · arm64 เผื่อ Mac รุ่นใหม่กับ Raspberry Pi
+          # ตัด arm64 ออกได้ถ้าอยากให้ build เร็วขึ้นมาก (ตัวนี้ต้องจำลองสถาปัตยกรรม)
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: แนบใบรับรองที่มาของ image
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

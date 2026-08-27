@@ -1,0 +1,74 @@
+# ใช้ตอนติดตั้งจริงที่โรงพยาบาล — ดึง image สำเร็จรูปมารัน ไม่ต้อง build ไม่ต้องมีซอร์ส
+#
+#   docker compose -f compose.prod.yml up -d
+#
+# ต่างจาก docker-compose.yml (ซึ่งใช้ตอนพัฒนา) สามอย่าง
+#   1. ใช้ image: แทน build: — ไม่ต้องมีโค้ดในเครื่อง ไม่ต้องลง Node
+#   2. ไม่ mount ซอร์สทับ — โค้ดที่รันคือตัวที่คอมไพล์แล้วใน image
+#   3. เว็บรัน node bin/server.js ไม่ใช่ npm run dev — ไม่มี HMR ไม่มี vite dev server
+
+name: queuewnk
+
+x-app: &app
+  # เปลี่ยน OWNER เป็นชื่อบัญชี GitHub ที่เก็บ repo นี้
+  # ยึดเลขรุ่นไว้ (ไม่ใช่ latest) จะได้รู้ว่าตอนนี้รันตัวไหนอยู่ และย้อนกลับได้เวลามีปัญหา
+  image: ${QUEUEWNK_IMAGE:-ghcr.io/OWNER/queuewnk:0.1.0}
+  env_file: .env
+  environment:
+    NODE_ENV: production
+    TZ: Asia/Bangkok
+    DB_HOST: db
+    DB_PORT: "3306"
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  # ฐานข้อมูลของแอปเราเอง ไม่ใช่ HOSxP — เก็บ config, watermark, บันทึกการส่ง
+  # HOSxP ต่อออกไปข้างนอกแบบอ่านอย่างเดียว ตั้งค่าผ่านหน้าเว็บ
+  db:
+    image: mariadb:12
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?ต้องตั้ง DB_ROOT_PASSWORD ใน .env}
+      MARIADB_DATABASE: ${DB_DATABASE:-queuewnk}
+      MARIADB_USER: ${DB_USER:-queuewnk}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?ต้องตั้ง DB_PASSWORD ใน .env}
+      TZ: Asia/Bangkok
+    volumes:
+      - dbdata:/var/lib/mysql
+    # ไม่เปิดพอร์ตออกนอกเครื่องโดยตั้งใจ — เข้าถึงได้เฉพาะจาก container ในสแตกนี้
+    # ถ้าต้องต่อด้วย HeidiSQL เพื่อดูข้อมูล เปิดชั่วคราวด้วย
+    #   ports: ["127.0.0.1:3307:3306"]
+    # ผูกกับ 127.0.0.1 เสมอ อย่าเปิดเป็น "3307:3306" เฉย ๆ เพราะจะโผล่ทั้งวง LAN
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # หน้าเว็บสำหรับผู้ดูแล
+  web:
+    <<: *app
+    command: node bin/server.js
+    ports:
+      # ให้เข้าได้จากเครื่องอื่นในโรงพยาบาล เปลี่ยนเป็น 127.0.0.1:3333:3333
+      # ถ้าจะให้เข้าได้เฉพาะเครื่องนี้ (แนะนำถ้ามี reverse proxy อยู่หน้าแล้ว)
+      - '3333:3333'
+
+  # poller คิว — ต้องมี instance เดียวเท่านั้น ไม่งั้นผู้ป่วยได้ข้อความซ้ำ
+  worker:
+    <<: *app
+    command: node ace queue:watch
+
+  # ตารางเวลาส่งซ้ำ และเฝ้าระวังเคส 506
+  notify:
+    <<: *app
+    command: node ace notify:watch
+
+volumes:
+  dbdata:
