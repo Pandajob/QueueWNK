@@ -56,6 +56,9 @@ router
     router
       .post('/settings/appointment', [AppointmentController, 'save'])
       .as('appointment.save')
+    router
+      .post('/settings/appointment/run', [AppointmentController, 'runNow'])
+      .as('appointment.run')
     router.get('/log', [PollerController, 'log']).as('poller.log')
     router.post('/log/:id/retry', [PollerController, 'retry']).as('poller.retry')
     router.post('/log/reset', [PollerController, 'resetToday']).as('poller.reset')

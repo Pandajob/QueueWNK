@@ -1584,3 +1584,9 @@ textarea.code {
   overflow-x: auto;
   margin: 10px 0;
 }
+
+/* พาเนลที่การกดปุ่มมีผลถึงผู้ป่วยจริง ต้องมองแล้วรู้ทันทีว่าไม่ใช่โหมดทดสอบ */
+.panel.danger-zone {
+  border-color: var(--fail);
+  background: var(--fail-bg);
+}

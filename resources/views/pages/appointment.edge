@@ -161,10 +161,43 @@
     </div>
   </form>
 
+  <div class="panel {{ settings.isEnabled && !settings.dryRun ? 'danger-zone' : '' }}">
+    <h2 class="panel-title">สั่งส่งเดี๋ยวนี้</h2>
+
+    @if (!settings.isEnabled)
+      <p class="hint">
+        ยังปิดใช้งานอยู่ — เปิดใช้งานและกดบันทึกด้านบนก่อน จึงจะสั่งส่งได้
+      </p>
+    @else
+      <p class="hint" style="margin-bottom: 12px">
+        ทำรอบส่งทันทีโดยไม่รอเวลา {{ settings.sendAt }}
+        ใช้การตั้งค่าปัจจุบันทุกอย่าง และ<strong>กันส่งซ้ำให้อยู่แล้ว</strong>
+        กดกี่ครั้งผู้ป่วยคนเดิมก็ได้ข้อความเดียว
+        @if (settings.dryRun)
+          <br />ตอนนี้ dry run เปิดอยู่ — จะบันทึกลงหน้าบันทึกการส่งแต่ไม่ถึงผู้ป่วย
+        @else
+          <br /><strong>dry run ปิดอยู่ — ข้อความจะถึงผู้ป่วยจริงภายในไม่กี่วินาที
+          และเรียกคืนไม่ได้</strong>
+        @end
+      </p>
+
+      <form method="POST" action="{{ route('appointment.run') }}" id="runNowForm">
+        {{ csrfField() }}
+        <button type="submit" class="{{ settings.dryRun ? '' : 'danger' }}">
+          @if (settings.dryRun)
+            ส่งเดี๋ยวนี้ (โหมดทดสอบ)
+          @else
+            ส่งจริงเดี๋ยวนี้
+          @end
+        </button>
+      </form>
+    @end
+  </div>
+
   <div class="panel">
-    <h2 class="panel-title">ก่อนเปิดส่งจริง</h2>
+    <h2 class="panel-title">ตรวจจากบรรทัดคำสั่ง</h2>
     <p class="hint">
-      ดูข้อความที่จะส่งทั้งชุดจากบรรทัดคำสั่งได้ โดยไม่ต้องเปิดใช้งานและไม่ส่งอะไรออกไป
+      ดูข้อความที่จะส่งทั้งชุดได้ โดยไม่ต้องเปิดใช้งานและไม่ส่งอะไรออกไป
     </p>
     <pre class="code-block">docker compose exec web node ace appointment:check</pre>
     <p class="hint">
@@ -177,6 +210,28 @@
   </div>
 
   <script>
+    // ยืนยันก่อนสั่งส่ง — ระบุจำนวนคนและวันที่จริง ไม่ใช่ข้อความกลาง ๆ ที่กดผ่านโดยไม่อ่าน
+    (function () {
+      const form = document.getElementById('runNowForm')
+      if (!form) return
+      const real = {{{ settings.dryRun ? 'false' : 'true' }}}
+      const count = {{{ matched === null ? 'null' : matched }}}
+      const target = '{{ target }}'
+      form.addEventListener('submit', function (e) {
+        const who = count === null ? 'ผู้ป่วยที่มีนัด' : count + ' คน'
+        const msg = real
+          ? 'ส่งข้อความจริงถึง ' + who + ' ที่มีนัดวันที่ ' + target + ' หรือไม่
+
+' +
+            'ส่งแล้วเรียกคืนไม่ได้'
+          : 'ตั้งคิวทดสอบสำหรับ ' + who + ' ที่มีนัดวันที่ ' + target + '
+
+' +
+            'dry run เปิดอยู่ ข้อความจะไม่ถึงผู้ป่วย'
+        if (!confirm(msg)) e.preventDefault()
+      })
+    })()
+
     // ปิดรายการคลินิกเมื่อเลือก "ทุกคลินิก" จะได้ไม่ต้องเดาว่าอันไหนมีผล
     (function () {
       const all = document.getElementById('allClinics')

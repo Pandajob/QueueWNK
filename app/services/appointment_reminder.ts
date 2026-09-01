@@ -135,8 +135,19 @@ export class AppointmentReminder {
     const now = DateTime.now().setZone('Asia/Bangkok')
     if (!this.#isDue(settings, now)) return empty
 
+    return this.runNow(settings, now)
+  }
+
+  /**
+   * ทำรอบส่งทันทีโดยไม่สนว่าถึงเวลาที่ตั้งไว้หรือยัง
+   *
+   * ใช้ทั้งจากรอบอัตโนมัติและจากปุ่มสั่งส่งในหน้าเว็บ ตรรกะเดียวกันทุกอย่าง
+   * รวมถึง dry run การกรองคลินิก และการกันส่งซ้ำด้วย dedup_key
+   */
+  async runNow(settings: AppointmentSetting, now = DateTime.now().setZone('Asia/Bangkok')) {
+    const empty: AppointmentTickResult = { scanned: 0, queued: 0, skipped: 0 }
     const target = now.plus({ days: Math.max(settings.daysAhead, 0) }).toISODate()!
-    const rows = await this.fetch(target)
+    const rows = await this.fetch(target).catch(() => null)
 
     if (rows === null) return { ...empty, note: 'อ่านนัดหมายจาก HOSxP ไม่ได้' }
 
@@ -150,7 +161,7 @@ export class AppointmentReminder {
     })
     await settings.save()
 
-    return result
+    return { ...result, target }
   }
 
   /** อ่านนัดของวันที่ระบุ คืน null เมื่อต่อ HOSxP ไม่ได้ */

@@ -83,4 +83,56 @@ export default class AppointmentController {
 
     return response.redirect().toRoute('appointment.index')
   }
+
+  /**
+   * ปุ่ม "ส่งเดี๋ยวนี้" — ทำรอบส่งทันทีโดยไม่รอเวลาที่ตั้งไว้
+   *
+   * ใช้ตรรกะเดียวกับรอบอัตโนมัติทุกอย่าง รวมถึง dry run การกรองคลินิก
+   * และ dedup_key ที่กันไม่ให้ผู้ป่วยคนเดิมได้ข้อความซ้ำ กดกี่ครั้งก็ส่งรอบเดียว
+   */
+  async runNow(ctx: HttpContext) {
+    const { response, session } = ctx
+    const settings = await AppointmentSetting.current()
+
+    if (!settings.isEnabled) {
+      session.flash('error', 'ยังปิดใช้งานอยู่ — เปิดใช้งานและบันทึกก่อนจึงจะสั่งส่งได้')
+      return response.redirect().toRoute('appointment.index')
+    }
+
+    const result = await new AppointmentReminder().runNow(settings)
+
+    if (result.note) {
+      session.flash('error', result.note)
+      return response.redirect().toRoute('appointment.index')
+    }
+
+    await audit(ctx, {
+      action: 'send',
+      entity: 'appointment',
+      entityId: settings.id,
+      summary:
+        `สั่งส่งแจ้งเตือนนัดหมายด้วยตนเอง — ${result.queued} รายการ` +
+        (settings.dryRun ? ' (dry run ไม่ถึงผู้ป่วย)' : ' (ส่งจริง)'),
+    })
+
+    if (!result.queued) {
+      session.flash(
+        'success',
+        `ไม่มีรายการใหม่ให้ส่ง — นัด ${result.scanned} ราย ตั้งคิวไปแล้วก่อนหน้านี้ทั้งหมด`
+      )
+    } else if (settings.dryRun) {
+      session.flash(
+        'success',
+        `ตั้งคิว ${result.queued} รายการแล้ว — dry run เปิดอยู่ จึงยังไม่ถึงผู้ป่วย ` +
+          'ไปตรวจข้อความได้ที่หน้าบันทึกการส่ง'
+      )
+    } else {
+      session.flash(
+        'success',
+        `กำลังส่งจริงถึงผู้ป่วย ${result.queued} ราย — ดูผลได้ที่หน้าบันทึกการส่งภายในไม่กี่วินาที`
+      )
+    }
+
+    return response.redirect().toRoute('appointment.index')
+  }
 }
