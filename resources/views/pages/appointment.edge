@@ -72,9 +72,12 @@
       </label>
 
       @if (clinics && clinics.length)
-        <p class="hint" style="margin: 12px 0">
-          เอาเครื่องหมายข้างบนออกเพื่อเลือกเฉพาะบางคลินิก
-          ตัวเลขคือจำนวนนัดใน 60 วันข้างหน้า
+        <p class="hint" id="clinicModeHint" style="margin: 12px 0">
+          กำลังส่งทุกคลินิก — กดเลือกคลินิกด้านล่างเพื่อเปลี่ยนเป็นเลือกเฉพาะบางคลินิก
+        </p>
+        <p class="hint" style="margin: -6px 0 12px">
+          ตัวเลขในวงเล็บคือจำนวนนัด<strong>ทั้งหมดใน 60 วันข้างหน้า</strong>
+          ไม่ใช่จำนวนที่จะส่งในรอบเดียว
         </p>
         <div class="dep-grid" id="clinicList">
           @each (clinic in clinics)
@@ -232,17 +235,41 @@
       })
     })()
 
-    // ปิดรายการคลินิกเมื่อเลือก "ทุกคลินิก" จะได้ไม่ต้องเดาว่าอันไหนมีผล
+    // สลับโหมด "ทุกคลินิก" กับ "เลือกเอง" โดยไม่ปิดการใช้งานช่องใด ๆ
+    //
+    // เดิมปิด (disabled) รายการคลินิกทั้งหมดตอนติ๊ก "ทุกคลินิก" ซึ่งเป็นค่าตั้งต้น
+    // เปิดหน้ามาจึงเห็นรายการจางแล้วกดไม่ติด โดยไม่มีอะไรบอกว่าเพราะอะไร
+    // ตอนนี้กดคลินิกได้เลย แล้วระบบสลับโหมดให้เอง
     (function () {
       const all = document.getElementById('allClinics')
       const list = document.getElementById('clinicList')
+      const hint = document.getElementById('clinicModeHint')
       if (!all || !list) return
-      const sync = () => {
-        list.style.opacity = all.checked ? '0.45' : '1'
-        list.querySelectorAll('input').forEach((el) => (el.disabled = all.checked))
+
+      const boxes = () => Array.from(list.querySelectorAll('input[type="checkbox"]'))
+
+      const paint = () => {
+        list.classList.toggle('is-muted', all.checked)
+        if (hint) {
+          hint.textContent = all.checked
+            ? 'กำลังส่งทุกคลินิก — กดเลือกคลินิกด้านล่างเพื่อเปลี่ยนเป็นเลือกเฉพาะบางคลินิก'
+            : 'ส่งเฉพาะคลินิกที่ติ๊กไว้ ถ้าไม่ติ๊กเลยจะไม่มีใครได้รับ'
+        }
       }
-      all.addEventListener('change', sync)
-      sync()
+
+      // ติ๊ก "ทุกคลินิก" = ล้างที่เลือกไว้ทิ้ง จะได้ไม่มีค่าค้างที่มองไม่เห็น
+      all.addEventListener('change', () => {
+        if (all.checked) boxes().forEach((el) => (el.checked = false))
+        paint()
+      })
+
+      // กดคลินิกขณะอยู่โหมด "ทุกคลินิก" = ตั้งใจจะเลือกเอง สลับโหมดให้เลย
+      list.addEventListener('change', () => {
+        if (all.checked && boxes().some((el) => el.checked)) all.checked = false
+        paint()
+      })
+
+      paint()
     })()
   </script>
 @end
