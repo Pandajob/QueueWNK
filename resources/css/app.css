@@ -1553,3 +1553,34 @@ textarea.code {
 .host-row:last-of-type {
   border-bottom: 0;
 }
+
+/* แจ้งเตือนนัดหมาย — ตัวอย่างข้อความที่ผู้ป่วยจะได้รับ */
+.preview-card {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--bg);
+}
+
+.preview-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.preview-text {
+  color: var(--text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* คำสั่งที่ก๊อปไปวางได้ ต่างจาก <code> สั้น ๆ ในบรรทัด */
+.code-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  font-size: 12.5px;
+  overflow-x: auto;
+  margin: 10px 0;
+}

@@ -52,6 +52,7 @@ export const NAV_SYSTEMS: NavSystem[] = [
         items: [
           { key: 'templates', label: 'ข้อความแจ้งเตือน', route: 'templates.index' },
           { key: 'poller', label: 'การส่ง', route: 'poller.settings' },
+          { key: 'appointment', label: 'แจ้งเตือนนัดหมาย', route: 'appointment.index' },
         ],
       },
       {

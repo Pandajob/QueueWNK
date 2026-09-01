@@ -143,3 +143,23 @@ export const manualSendValidator = vine.compile(
     groups: vine.array(vine.number().positive()).minLength(1),
   })
 )
+
+/**
+ * ตั้งค่าแจ้งเตือนนัดหมาย
+ *
+ * daysAhead จำกัด 0–30 — 0 คือแจ้งเช้าวันนัด ส่วนเกิน 30 วันไม่มีใครจำได้
+ * และยิ่งล่วงหน้ามาก โอกาสที่นัดจะถูกยกเลิกหลังส่งไปแล้วก็ยิ่งสูง
+ */
+export const appointmentValidator = vine.compile(
+  vine.object({
+    isEnabled: vine.accepted().optional(),
+    dryRun: vine.accepted().optional(),
+    daysAhead: vine.number().range([0, 30]),
+    sendAt: vine.string().regex(/^\d{2}:\d{2}$/),
+    allClinics: vine.accepted().optional(),
+    clinicCodes: vine.array(vine.string().maxLength(3)).optional(),
+    messageTitle: vine.string().trim().minLength(1).maxLength(120),
+    messageText: vine.string().trim().maxLength(2000),
+    messageHtml: vine.string().trim().maxLength(4000),
+  })
+)

@@ -1,0 +1,193 @@
+@component('layouts/main', { title: 'แจ้งเตือนนัดหมาย', active: 'appointment' })
+  <h1>แจ้งเตือนนัดหมาย</h1>
+  <p class="subtitle">
+    ส่งข้อความถึงผู้ป่วยผ่านหมอพร้อมล่วงหน้าก่อนถึงวันนัด อ่านจากตารางนัดของ HOSxP โดยตรง
+  </p>
+
+  @if (hosxpDown)
+    <div class="panel notice">
+      <strong>ต่อฐาน HOSxP ไม่ได้ในตอนนี้</strong>
+      <p class="hint" style="margin-top: 6px">
+        ยังแก้และบันทึกการตั้งค่าได้ตามปกติ แต่ยังดูรายชื่อคลินิกกับตัวอย่างข้อความไม่ได้
+        ตรวจการเชื่อมต่อที่หน้า <a href="{{ route('settings.hosxp') }}">ฐานข้อมูล HOSxP</a>
+      </p>
+    </div>
+  @end
+
+  <form method="POST" action="{{ route('appointment.save') }}">
+    {{ csrfField() }}
+
+    <div class="panel {{ settings.dryRun ? 'notice' : '' }}">
+      <label class="checkbox">
+        <input type="checkbox" name="isEnabled" value="1" {{ settings.isEnabled ? 'checked' : '' }} />
+        เปิดใช้งานการแจ้งเตือนนัดหมาย
+      </label>
+
+      <label class="checkbox" style="margin-top: 10px">
+        <input type="checkbox" name="dryRun" value="1" {{ settings.dryRun ? 'checked' : '' }} />
+        โหมดทดสอบ (dry run)
+      </label>
+
+      <p class="hint" style="margin-top: 8px">
+        เปิดไว้ = ตั้งคิวข้อความและบันทึกทุกอย่างตามปกติ แต่<strong>ไม่ส่งถึงผู้ป่วย</strong>
+        ไปดูผลได้ที่<a href="{{ route('poller.log') }}">บันทึกการส่ง</a> ว่าจะส่งหาใครด้วยข้อความอะไร
+        <br />
+        ปิด = ข้อความถึงผู้ป่วยจริง <strong>ส่งแล้วเรียกคืนไม่ได้</strong>
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ส่งเมื่อไร</h2>
+
+      <div class="row">
+        <div class="field narrow">
+          <label for="daysAhead">ล่วงหน้ากี่วัน</label>
+          <input type="number" id="daysAhead" name="daysAhead" min="0" max="30"
+                 value="{{ settings.daysAhead }}" required />
+          <p class="hint">1 = แจ้งวันนี้ว่าพรุ่งนี้มีนัด</p>
+        </div>
+        <div class="field narrow">
+          <label for="sendAt">ส่งเวลา</label>
+          <input type="time" id="sendAt" name="sendAt" value="{{ settings.sendAt }}" required />
+          <p class="hint">วันละครั้ง</p>
+        </div>
+      </div>
+
+      <p class="hint">
+        ยิ่งแจ้งล่วงหน้านานยิ่งมีโอกาสที่นัดจะถูกยกเลิกหลังส่งไปแล้ว
+        เพราะระบบอ่านตารางนัด ณ ตอนส่งเท่านั้น ไม่ได้ตามแก้ให้ทีหลัง
+        <br />
+        ถ้าเวลาที่ตั้งไว้ตรงกับ<a href="{{ route('poller.settings') }}">ช่วงงดส่ง</a>
+        ข้อความจะค้างไว้จนพ้นช่วงแล้วค่อยออก
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">คลินิกที่จะแจ้งเตือน</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="allClinics" value="1" id="allClinics"
+               {{ settings.allClinics ? 'checked' : '' }} />
+        ทุกคลินิก
+      </label>
+
+      @if (clinics && clinics.length)
+        <p class="hint" style="margin: 12px 0">
+          เอาเครื่องหมายข้างบนออกเพื่อเลือกเฉพาะบางคลินิก
+          ตัวเลขคือจำนวนนัดใน 60 วันข้างหน้า
+        </p>
+        <div class="dep-grid" id="clinicList">
+          @each (clinic in clinics)
+            <label class="checkbox dep-item">
+              <input type="checkbox" name="clinicCodes[]" value="{{ clinic.clinic }}"
+                     {{ (settings.clinicCodes || []).includes(clinic.clinic) ? 'checked' : '' }} />
+              {{ clinic.name }} <span class="hint">({{ clinic.n }})</span>
+            </label>
+          @end
+        </div>
+      @elseif (!hosxpDown)
+        <p class="hint" style="margin-top: 12px">ไม่พบนัดใน 60 วันข้างหน้า</p>
+      @end
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ข้อความ</h2>
+
+      <div class="field">
+        <label for="messageTitle">หัวข้อแจ้งเตือน</label>
+        <input type="text" id="messageTitle" name="messageTitle" maxlength="120"
+               value="{{ settings.messageTitle }}" required />
+        <p class="hint">ข้อความที่เด้งขึ้นบนมือถือ</p>
+      </div>
+
+      <div class="field">
+        <label for="messageText">ข้อความ</label>
+        <textarea id="messageText" name="messageText" rows="3">{{ settings.messageText || defaults.text }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="messageHtml">เนื้อหาในการ์ด (HTML)</label>
+        <textarea id="messageHtml" name="messageHtml" rows="5">{{ settings.messageHtml || defaults.html }}</textarea>
+      </div>
+
+      <p class="hint">
+        ตัวยึดที่ใช้ได้ —
+        <code>{name}</code> ชื่อผู้ป่วย ·
+        <code>{date}</code> วันนัดแบบ พ.ศ. ·
+        <code>{time}</code> เวลานัด ·
+        <code>{clinic}</code> ชื่อคลินิก ·
+        <code>{hn}</code> เลข HN
+        <br />
+        <strong>ตัวยึดที่พิมพ์ผิดจะกลายเป็นค่าว่าง</strong> ไม่ใช่ข้อความค้างในวงเล็บ
+        ดูตัวอย่างข้างล่างทุกครั้งหลังแก้
+        <br />
+        นัดที่ไม่ได้ระบุเวลาในระบบ <code>{time}</code> จะว่างไว้ ไม่ขึ้นว่าเวลา 00.00 น.
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ตัวอย่างที่ผู้ป่วยจะได้รับ</h2>
+
+      @if (preview)
+        <p class="hint" style="margin-bottom: 10px">
+          สร้างจากนัดจริงรายแรกของวันที่ {{ target }} · บันทึกก่อนแล้วตัวอย่างจะอัปเดตตาม
+        </p>
+        <div class="preview-card">
+          <div class="preview-title">{{ preview.title }}</div>
+          <div class="preview-text">{{ preview.text }}</div>
+        </div>
+      @elseif (!hosxpDown)
+        <p class="hint">วันที่ {{ target }} ไม่มีนัด จึงยังไม่มีตัวอย่างให้ดู</p>
+      @end
+
+      @if (totalUpcoming !== null)
+        <p class="hint" style="margin-top: 12px">
+          วันที่ <strong>{{ target }}</strong> มีนัดทั้งหมด <strong>{{ totalUpcoming }}</strong> ราย
+          @if (matched !== totalUpcoming)
+            · อยู่ในคลินิกที่เปิดไว้ <strong>{{ matched }}</strong> ราย
+          @end
+        </p>
+      @end
+
+      @if (settings.lastRunNote)
+        <p class="hint" style="margin-top: 8px">
+          รอบล่าสุด: {{ settings.lastRunNote }}
+        </p>
+      @end
+    </div>
+
+    <div class="actions">
+      <button type="submit">บันทึก</button>
+    </div>
+  </form>
+
+  <div class="panel">
+    <h2 class="panel-title">ก่อนเปิดส่งจริง</h2>
+    <p class="hint">
+      ดูข้อความที่จะส่งทั้งชุดจากบรรทัดคำสั่งได้ โดยไม่ต้องเปิดใช้งานและไม่ส่งอะไรออกไป
+    </p>
+    <pre class="code-block">docker compose exec web node ace appointment:check</pre>
+    <p class="hint">
+      คำสั่งนี้อ่านอย่างเดียว ใส่ <code>--date 5/9/2569</code> เพื่อดูวันอื่น
+      หรือ <code>--queue</code> เพื่อตั้งคิวจริงตามการตั้งค่าปัจจุบัน
+      <br />
+      ⚠️ ข้อความจะออกก็ต่อเมื่อมี <code>queue:watch</code> รันอยู่ด้วย
+      เพราะใช้ตัวส่งตัวเดียวกับแจ้งเตือนคิว
+    </p>
+  </div>
+
+  <script>
+    // ปิดรายการคลินิกเมื่อเลือก "ทุกคลินิก" จะได้ไม่ต้องเดาว่าอันไหนมีผล
+    (function () {
+      const all = document.getElementById('allClinics')
+      const list = document.getElementById('clinicList')
+      if (!all || !list) return
+      const sync = () => {
+        list.style.opacity = all.checked ? '0.45' : '1'
+        list.querySelectorAll('input').forEach((el) => (el.disabled = all.checked))
+      }
+      all.addEventListener('change', sync)
+      sync()
+    })()
+  </script>
+@end

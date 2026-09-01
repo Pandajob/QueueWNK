@@ -382,7 +382,19 @@ export class QueuePoller {
       notification.attempts++
 
       try {
-        const response = await moph.sendTemplate(payload)
+        // นัดหมายไม่มี template ให้ใช้ — MOPH Alert Template v3.1 มีแค่ 4 แบบ
+        // และทั้งหมดเป็นเรื่องคิว จึงต้องส่งผ่าน free form ที่กำหนดเนื้อความเองได้
+        const response =
+          notification.caseKey === 'appointment'
+            ? await moph.sendFreeForm({
+                cid: [cid],
+                messages: [{ text: notification.payload.message_text, type: 'text' }],
+                message_title: notification.payload.message_title,
+                message_html: notification.payload.message_html,
+                message_text: notification.payload.message_text,
+                message_type: 'HPT',
+              })
+            : await moph.sendTemplate(payload)
         const code = response.body?.message_code ?? response.status
 
         notification.mophCode = code

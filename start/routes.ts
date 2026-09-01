@@ -17,6 +17,7 @@ const UsersController = () => import('#controllers/users_controller')
 const TemplatesController = () => import('#controllers/templates_controller')
 const TestSendController = () => import('#controllers/test_send_controller')
 const PollerController = () => import('#controllers/poller_controller')
+const AppointmentController = () => import('#controllers/appointment_controller')
 const NotifyController = () => import('#controllers/notify_controller')
 const NotifyGroupsController = () => import('#controllers/notify_groups_controller')
 const NotifyDatasetsController = () => import('#controllers/notify_datasets_controller')
@@ -49,6 +50,12 @@ router
 
     router.get('/settings/poller', [PollerController, 'settings']).as('poller.settings')
     router.post('/settings/poller', [PollerController, 'saveSettings']).as('poller.settings.save')
+
+    // แจ้งเตือนนัดหมายล่วงหน้า — อยู่กลุ่ม Alert เพราะส่งถึงผู้ป่วยเหมือนกัน
+    router.get('/settings/appointment', [AppointmentController, 'index']).as('appointment.index')
+    router
+      .post('/settings/appointment', [AppointmentController, 'save'])
+      .as('appointment.save')
     router.get('/log', [PollerController, 'log']).as('poller.log')
     router.post('/log/:id/retry', [PollerController, 'retry']).as('poller.retry')
     router.post('/log/reset', [PollerController, 'resetToday']).as('poller.reset')
