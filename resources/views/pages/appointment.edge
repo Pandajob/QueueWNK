@@ -154,10 +154,10 @@
           รอบล่าสุด: {{ settings.lastRunNote }}
         </p>
       @end
-    </div>
 
-    <div class="actions">
-      <button type="submit">บันทึก</button>
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
     </div>
   </form>
 
@@ -183,7 +183,7 @@
 
       <form method="POST" action="{{ route('appointment.run') }}" id="runNowForm">
         {{ csrfField() }}
-        <button type="submit" class="{{ settings.dryRun ? '' : 'danger' }}">
+        <button type="submit" class="{{ settings.dryRun ? 'secondary' : 'danger' }}">
           @if (settings.dryRun)
             ส่งเดี๋ยวนี้ (โหมดทดสอบ)
           @else
