@@ -30,6 +30,11 @@ yarn-error.log
 # ผลสำรวจ schema — มีชื่อคอลัมน์และตัวอย่างข้อมูลของ รพ.
 docs/hosxp-schema.md
 
+# สคริปต์ Google Apps Script ของงานอื่นที่ใช้ MOPH Notify ร่วมกัน
+# ไม่ใช่ส่วนหนึ่งของ QueueWNK และ QueueWNK ทำงานได้โดยไม่มีโฟลเดอร์นี้
+# เก็บไว้ในเครื่องเท่านั้น
+scripts/
+
 # เอกสารที่ผู้ขายส่งมา — postman collection กับ PDF มี client-key/secret-key ของ UAT
 # ฝังอยู่แบบ plain text ทั้งคู่ ไม่เอาขึ้น repo เลยทั้งโฟลเดอร์
 docs/reference/

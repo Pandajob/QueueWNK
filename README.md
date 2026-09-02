@@ -709,7 +709,6 @@ notification ก่อนผู้ใช้เปิดการ์ด ถ้า
 | ตารางเวลา | [app/services/schedule_runner.ts](app/services/schedule_runner.ts) |
 | เฝ้าระวัง 506 | [app/services/cdcu_watcher.ts](app/services/cdcu_watcher.ts) |
 | แจ้งเตือนนัดหมายล่วงหน้า | [app/services/appointment_reminder.ts](app/services/appointment_reminder.ts) |
-| สคริปต์ Apps Script (นอกตัวระบบ) | [scripts/apps-script/](scripts/apps-script/README.md) |
 | บันทึกประวัติการแก้ไข | [app/services/audit.ts](app/services/audit.ts) |
 | poller คิว | [commands/queue_watch.ts](commands/queue_watch.ts) |
 | worker MOPH Notify | [commands/notify_watch.ts](commands/notify_watch.ts) |
