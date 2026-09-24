@@ -71,5 +71,8 @@
       "./app/middleware/*.ts"
     ]
   },
-  "prettier": "@adonisjs/prettier-config"
+  "prettier": "@adonisjs/prettier-config",
+  "overrides": {
+    "jsonschema": "1.4.1"
+  }
 }
