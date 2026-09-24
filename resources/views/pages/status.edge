@@ -60,6 +60,31 @@
             @end
           </td>
         </tr>
+        {{--
+          แต่ละเครื่องฐานข้อมูลพูดว่าอะไร
+
+          ไทล์ข้างบนสรุปว่า "ตรงกันไหม" แต่เวลามีปัญหาคำถามถัดไปคือ
+          "เครื่องไหน" จึงกางรายเครื่องไว้ตรงนี้ ไม่ต้องข้ามไปอีกหน้า
+        --}}
+        @if (dbSync.lastReport)
+          @each (probe in dbSync.lastReport.hosts)
+            <tr>
+              <th>{{ probe.label }}</th>
+              <td>
+                {{ probe.host + ':' + probe.port }}
+                @if (probe.ok)
+                  · server_id {{ probe.serverId ?? '—' }}
+                  · {{ probe.readOnly ? 'อ่านอย่างเดียว' : 'รับการเขียน' }}
+                  @if (probe.clockSkewSeconds !== null)
+                    · นาฬิกาต่าง {{ probe.clockSkewSeconds }} วิ
+                  @end
+                @else
+                  · <strong>ต่อไม่ได้</strong> {{ probe.error ?? '' }}
+                @end
+              </td>
+            </tr>
+          @end
+        @end
         <tr>
           <th>worker</th>
           <td>
