@@ -330,7 +330,7 @@ export class NotifySchedule extends BaseModel {
 
 // --- ประวัติการส่ง ------------------------------------------------------------
 
-export type MessageSource = 'schedule' | 'manual' | 'ops' | 'cdcu' | 'dbsync'
+export type MessageSource = 'schedule' | 'manual' | 'ops' | 'cdcu' | 'dbsync' | 'vitals' | 'pc'
 export type MessageStatus = 'sent' | 'failed' | 'skipped'
 
 export class NotifyMessage extends BaseModel {
@@ -476,6 +476,124 @@ export class CdcuSetting extends BaseModel {
   }
 }
 
+// --- แจ้งเตือนความดันโลหิตสูง ------------------------------------------------
+
+export class VitalsSetting extends BaseModel {
+  static table = 'vitals_settings'
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare isEnabled: boolean
+
+  @column()
+  declare groupId: number | null
+
+  @column()
+  declare sysThreshold: number
+
+  @column()
+  declare diaThreshold: number
+
+  @column()
+  declare allDepartments: boolean
+
+  @column(jsonColumn)
+  declare departmentCodes: string[] | null
+
+  @column()
+  declare includeHn: boolean
+
+  @column()
+  declare includeName: boolean
+
+  @column()
+  declare includeAddress: boolean
+
+  @column()
+  declare includePhone: boolean
+
+  /** ตัดคนที่เคยวินิจฉัย ICD-10 I10 ออก เหลือเฉพาะคนที่ยังไม่รู้ตัว */
+  @column()
+  declare excludeKnownHt: boolean
+
+  /** เวลาส่งรายงานประจำวัน รูปแบบ HH:mm เวลาไทย */
+  @column()
+  declare sendAt: string
+
+  @column.date()
+  declare lastRunDate: DateTime | null
+
+  @column.dateTime()
+  declare lastRunAt: DateTime | null
+
+  @column()
+  declare lastRunNote: string | null
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+
+  @belongsTo(() => NotifyGroup, { foreignKey: 'groupId' })
+  declare group: BelongsTo<typeof NotifyGroup>
+
+  /**
+   * ต้องอ่านกลับจากฐานหลังสร้าง ไม่งั้นค่าตั้งต้นที่ประกาศไว้ใน migration
+   * จะเป็น undefined ทั้งหมดในรอบแรก
+   *
+   * สำคัญกับ sysThreshold/diaThreshold — undefined ในการเทียบ `bps >= undefined`
+   * ได้ false เสมอ ผลคือเงียบสนิทโดยไม่มีอะไรฟ้องว่าผิด
+   */
+  static async current() {
+    const existing = await this.first()
+    if (existing) return existing
+
+    const created = await this.create({})
+    await created.refresh()
+    return created
+  }
+
+  watches(dep: string | null) {
+    if (this.allDepartments) return true
+    if (!dep) return false
+    return (this.departmentCodes ?? []).includes(dep)
+  }
+}
+
+export class VitalsSeen extends BaseModel {
+  static table = 'vitals_seen'
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare vn: string
+
+  @column()
+  declare hn: string | null
+
+  @column()
+  declare bps: number | null
+
+  @column()
+  declare bpd: number | null
+
+  @column()
+  declare dep: string | null
+
+  @column.date()
+  declare vstdate: DateTime | null
+
+  @column()
+  declare notified: boolean
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+}
+
 export class CdcuSeen extends BaseModel {
   static table = 'cdcu_seen'
 
@@ -485,7 +603,14 @@ export class CdcuSeen extends BaseModel {
   @column()
   declare svNumber: number
 
-  @column()
+  /**
+   * ระบุชื่อคอลัมน์เอง ด้วยเหตุผลเดียวกับ `PcSeen.icd10`
+   *
+   * Lucid จะแปลง `code506` เป็น `code_506` ซึ่งไม่มีอยู่จริง ค่าเลยเป็น undefined
+   * เงียบ ๆ ตอนนี้ยังไม่มีใครอ่านค่านี้ผ่านโมเดล (หน้า CDCU อ่านจากแถวดิบของ HOSxP)
+   * จึงยังไม่มีอาการ แต่ถ้าวันหลังมีคนเรียกใช้จะงงหาสาเหตุนาน
+   */
+  @column({ columnName: 'code506' })
   declare code506: number | null
 
   @column()
@@ -496,6 +621,206 @@ export class CdcuSeen extends BaseModel {
 
   @column()
   declare notified: boolean
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+}
+
+// --- แจ้งเตือนผู้ป่วยกลุ่มประคับประคอง (Palliative Care) ---------------------
+
+export class PcSetting extends BaseModel {
+  static table = 'pc_settings'
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare isEnabled: boolean
+
+  @column()
+  declare groupId: number | null
+
+  /** แจ้งทันทีที่พบผู้ป่วยรายใหม่ */
+  @column()
+  declare notifyImmediate: boolean
+
+  /** สรุปผู้ป่วยรายใหม่ของวันรวมเป็นข้อความเดียว */
+  @column()
+  declare notifyDaily: boolean
+
+  /** เวลาส่งสรุปรายวัน รูปแบบ HH:mm เวลาไทย */
+  @column()
+  declare sendAt: string
+
+  @column()
+  declare allGroups: boolean
+
+  @column(jsonColumn)
+  declare groupCodes: string[] | null
+
+  @column()
+  declare lookbackDays: number
+
+  @column()
+  declare maxPerRun: number
+
+  @column()
+  declare includeHn: boolean
+
+  @column()
+  declare includeName: boolean
+
+  @column()
+  declare includeAddress: boolean
+
+  @column()
+  declare includePhone: boolean
+
+  @column()
+  declare excludeDead: boolean
+
+  @column()
+  declare seeded: boolean
+
+  @column.dateTime()
+  declare seededAt: DateTime | null
+
+  @column.date()
+  declare lastRunDate: DateTime | null
+
+  @column.dateTime()
+  declare lastRunAt: DateTime | null
+
+  @column()
+  declare lastRunNote: string | null
+
+  /** รอบล่าสุดที่กวาดการมาโรงพยาบาลลง pc_visits */
+  @column.dateTime()
+  declare visitsSyncedAt: DateTime | null
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+
+  @belongsTo(() => NotifyGroup, { foreignKey: 'groupId' })
+  declare group: BelongsTo<typeof NotifyGroup>
+
+  /**
+   * ต้องอ่านกลับจากฐานหลังสร้าง ไม่งั้นค่าตั้งต้นใน migration จะเป็น undefined
+   * ทั้งหมดในรอบแรก — บทเรียนเดียวกับ VitalsSetting
+   */
+  static async current() {
+    const existing = await this.first()
+    if (existing) return existing
+
+    const created = await this.create({})
+    await created.refresh()
+    return created
+  }
+
+  /** เฝ้ากลุ่มโรคนี้อยู่ไหม */
+  watches(key: string | null) {
+    if (this.allGroups) return true
+    if (!key) return false
+    return (this.groupCodes ?? []).includes(key)
+  }
+}
+
+export class PcSeen extends BaseModel {
+  static table = 'pc_seen'
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare hn: string
+
+  @column()
+  declare grp: string | null
+
+  /**
+   * ต้องระบุชื่อคอลัมน์เอง
+   *
+   * Lucid แปลงชื่อ property เป็น snake_case ให้อัตโนมัติ ซึ่ง `icd10` กลายเป็น
+   * `icd_10` — ไม่ตรงกับชื่อคอลัมน์จริง ผลคือค่านี้ไม่ถูก select มาเลยและอ่านได้
+   * เป็น undefined โดยไม่มี error ใด ๆ หน้าเว็บขึ้นขีดกลางเฉย ๆ ทั้งที่ในฐานมีค่า
+   */
+  @column({ columnName: 'icd10' })
+  declare icd10: string | null
+
+  @column.date()
+  declare dxdate: DateTime | null
+
+  @column()
+  declare src: string | null
+
+  @column()
+  declare pname: string | null
+
+  @column()
+  declare fname: string | null
+
+  @column()
+  declare lname: string | null
+
+  @column()
+  declare addr: string | null
+
+  @column()
+  declare tel: string | null
+
+  @column()
+  declare hospsub: string | null
+
+  @column()
+  declare hospsubName: string | null
+
+  @column()
+  declare inDistrict: boolean
+
+  @column()
+  declare notified: boolean
+
+  /** HOSxP บันทึกว่าเสียชีวิต — เติมโดยรอบกวาด pc_visits */
+  @column.date()
+  declare deathOn: DateTime | null
+
+  @column()
+  declare deathPlace: string | null
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+}
+
+/** การมาโรงพยาบาลของผู้ป่วยในทะเบียนประคับประคอง — กวาดจาก ovst ของ HOSxP */
+export class PcVisit extends BaseModel {
+  static table = 'pc_visits'
+
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare hn: string
+
+  @column()
+  declare vn: string
+
+  @column()
+  declare an: string | null
+
+  @column.date()
+  declare vstdate: DateTime
+
+  @column()
+  declare vsttime: string | null
+
+  @column()
+  declare dept: string | null
+
+  @column()
+  declare kind: 'OPD' | 'IPD'
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

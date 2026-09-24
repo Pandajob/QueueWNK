@@ -1,0 +1,375 @@
+@component('layouts/main', { title: 'แจ้งเตือนความดันสูง', active: 'nt-vitals' })
+
+  <h1>แจ้งเตือนความดันสูง</h1>
+  <p class="subtitle">
+    อ่านผลคัดกรองแรกรับใน HOSxP (<code>opdscreen</code>) แล้วแจ้งรายที่ความดันถึงเกณฑ์เข้ากลุ่ม LINE
+  </p>
+
+  @if (hosxpDown)
+    <div class="panel notice">
+      <strong>อ่านข้อมูลจาก HOSxP ไม่ได้ตอนนี้</strong>
+      <p class="hint" style="margin-top: 6px">
+        ตั้งค่ายังแก้ได้ตามปกติ แต่ตารางด้านล่างจะว่างจนกว่าการเชื่อมต่อจะกลับมา
+        — ตรวจที่ <a href="{{ route('settings.hosxp') }}">ตั้งค่า HOSxP</a>
+      </p>
+    </div>
+  @end
+
+  <div class="panel {{ settings.isEnabled ? '' : 'notice' }}">
+    <div class="template-head">
+      <h2 class="panel-title">สถานะ</h2>
+      @if (settings.isEnabled && settings.groupId)
+        <span class="pill on">เปิดอยู่</span>
+      @else
+        <span class="pill off">ปิดอยู่</span>
+      @end
+    </div>
+    <p class="hint">
+      ส่งรายงานวันละครั้งเวลา <strong>{{ settings.sendAt }} น.</strong>
+      แต่ละรอบเก็บข้อมูล<strong>ตั้งแต่รอบที่แล้วถึงเวลาส่ง</strong> ไม่ใช่ตั้งแต่เที่ยงคืน
+      — รายที่คัดกรองหลัง {{ settings.sendAt }} น. ของวันนี้จะไปรวมอยู่ในรอบของวันพรุ่งนี้
+      ไม่มีใครหล่นหายและไม่มีใครถูกแจ้งซ้ำ
+    </p>
+    <p class="hint" style="margin-top: 8px">
+      ช่วงข้อมูลของรอบถัดไป:
+      <strong>{{ window.from.toFormat('dd/MM HH:mm') }} น. เป็นต้นไป</strong>
+    </p>
+    @if (settings.lastRunNote)
+      <p class="hint" style="margin-top: 8px">
+        รอบล่าสุด: {{ settings.lastRunNote }}
+        @if (settings.lastRunAt)
+          · {{ settings.lastRunAt.setZone('Asia/Bangkok').toFormat('dd/MM HH:mm') }} น.
+        @end
+      </p>
+    @end
+  </div>
+
+  <form method="POST" action="{{ route('notify.vitals.save') }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <h2 class="panel-title">ตั้งค่า</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="isEnabled" value="1" {{ settings.isEnabled ? 'checked' : '' }} />
+        <strong>เปิดการแจ้งเตือน</strong>
+      </label>
+
+      <div class="field" style="margin-top: 14px">
+        <label for="groupId">กลุ่ม LINE ที่จะแจ้ง</label>
+        <select id="groupId" name="groupId">
+          <option value="">— ยังไม่เลือก —</option>
+          @each (group in groups)
+            <option value="{{ group.id }}" {{ settings.groupId === group.id ? 'selected' : '' }}>
+              {{ group.name }}
+            </option>
+          @end
+        </select>
+        @if (!groups.length)
+          <p class="hint danger">
+            ยังไม่มีกลุ่ม — <a href="{{ route('notify.groups.create') }}">เพิ่มกลุ่มก่อน</a>
+          </p>
+        @end
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">เกณฑ์ความดัน</h2>
+
+      <div class="row">
+        <div class="field">
+          <label for="sysThreshold">ค่าบน (systolic) เกินกว่า</label>
+          <input type="number" id="sysThreshold" name="sysThreshold" min="100" max="250"
+                 required value="{{ settings.sysThreshold }}" />
+          <p class="hint">mmHg</p>
+        </div>
+        <div class="field">
+          <label for="diaThreshold">หรือค่าล่าง (diastolic) เกินกว่า</label>
+          <input type="number" id="diaThreshold" name="diaThreshold" min="60" max="150"
+                 required value="{{ settings.diaThreshold }}" />
+          <p class="hint">mmHg</p>
+        </div>
+      </div>
+
+      <p class="hint">
+        เข้าเกณฑ์เมื่อค่าใดค่าหนึ่ง<strong>เกิน</strong>ที่ตั้งไว้ ไม่ต้องเกินทั้งคู่ —
+        ตั้ง 139/90 หมายถึงค่าบนตั้งแต่ 140 ขึ้นไป หรือค่าล่างตั้งแต่ 91 ขึ้นไป
+      </p>
+
+      <div class="panel notice" id="volume-box" style="margin-top: 14px">
+        <strong>
+          เกณฑ์นี้จะได้ราว <span id="volume-per-day">กำลังคำนวณ…</span> รายต่อวัน
+        </strong>
+        <p class="hint" style="margin-top: 6px">
+          คิดจากผลคัดกรองจริงของโรงพยาบาลย้อนหลัง 30 วัน
+          (รวม <span id="volume-total">—</span> ราย)
+          — คำนวณหลังหน้าโหลดเสร็จ เพราะต้องไล่ประวัติการวินิจฉัยย้อนหลังทั้งหมด
+        </p>
+        <p class="hint" style="margin-top: 8px">
+          แต่ละสถานพยาบาลรองได้<strong>ข้อความของตัวเองหนึ่งฉบับ</strong>
+          จำนวนรายต่อวันจึงไม่เท่ากับจำนวนข้อความต่อวัน
+        </p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ผู้ป่วยที่วินิจฉัยแล้ว</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="excludeKnownHt" value="1" id="exclude-known-ht"
+               {{ settings.excludeKnownHt ? 'checked' : '' }} />
+        <strong>ไม่แจ้งคนที่เคยได้รับการวินิจฉัยความดันโลหิตสูง (ICD-10 I10)</strong>
+      </label>
+
+      <p class="hint" style="margin-top: 10px">
+        เป้าหมายของรายงานคือ<strong>หาคนที่ยังไม่รู้ตัว</strong> — คนที่วินิจฉัยแล้วอยู่ในระบบดูแล
+        ของคลินิกโรคเรื้อรังอยู่แล้ว แจ้งซ้ำทุกครั้งที่เขามาวัดความดันไม่ได้ช่วยอะไร
+        และกลบเคสใหม่จนมองไม่เห็น
+        <br />
+        ดูย้อนหลัง<strong>ทั้งประวัติ</strong>ทั้งผู้ป่วยนอก (<code>ovstdiag</code>)
+        และผู้ป่วยใน (<code>iptdiag</code>) รหัสที่นับคือ I10 กับ I109
+        ซึ่งเป็นความดันสูงชนิดปฐมภูมิ ส่วน I11–I15 ที่เป็นภาวะแทรกซ้อนไม่ได้นับ
+        <br />
+        ของจริงในฐานนี้ 24 ชั่วโมงมีความดันเกินเกณฑ์ 160 ราย วินิจฉัยแล้ว 93 ราย (58%)
+        เหลือเคสที่ยังไม่เคยวินิจฉัย 67 ราย
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">เวลาส่ง</h2>
+
+      <div class="field">
+        <label for="sendAt">ส่งรายงานทุกวันเวลา</label>
+        <input type="time" id="sendAt" name="sendAt" required value="{{ settings.sendAt }}" />
+        <p class="hint">เวลาไทย ส่งวันละครั้ง</p>
+      </div>
+
+      <p class="hint">
+        ถ้าระบบไม่ได้ทำงานตอนถึงเวลา (เช่นเซิร์ฟเวอร์รีสตาร์ต) รอบนั้นจะส่งทันทีที่กลับมา
+        และช่วงข้อมูลยังครบเหมือนเดิม เพราะนับจากรอบที่แล้วไม่ใช่นับจากเที่ยงคืน
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ข้อมูลที่ส่งเข้ากลุ่ม</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="includeName" value="1" {{ settings.includeName ? 'checked' : '' }} />
+        ใส่ชื่อ-สกุลผู้รับบริการ
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="includeHn" value="1" {{ settings.includeHn ? 'checked' : '' }} />
+        ใส่ HN
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="includeAddress" value="1" {{ settings.includeAddress ? 'checked' : '' }} />
+        ใส่ที่อยู่
+      </label>
+
+      <label class="checkbox">
+        <input type="checkbox" name="includePhone" value="1" {{ settings.includePhone ? 'checked' : '' }} />
+        ใส่เบอร์โทร
+      </label>
+
+      <div class="panel notice" style="margin-top: 12px">
+        <strong>ข้อความนี้ระบุตัวผู้ป่วยได้ครบถ้วน</strong>
+        <p class="hint" style="margin-top: 6px">
+          ชื่อ HN ที่อยู่ และเบอร์โทรรวมกันคือข้อมูลที่พาไปถึงตัวคนได้จริง
+          ต่างจากการแจ้งเฉพาะค่าความดันกับแผนก
+          <br />
+          กลุ่ม LINE ปลายทางต้อง<strong>มีแต่คนที่มีสิทธิ์เข้าถึงข้อมูลผู้ป่วย</strong> —
+          ข้อความในกลุ่มถูกอ่านย้อนหลังได้ ส่งต่อได้ และค้างอยู่บนเครื่องของทุกคนในกลุ่ม
+          รวมถึงคนที่ถูกเชิญเข้ามาทีหลัง
+          <br />
+          ปิดช่องที่ไม่จำเป็นได้ตลอด ข้อความจะยังใช้งานได้ด้วยค่าความดันกับสถานพยาบาลรอง
+        </p>
+      </div>
+
+      <p class="hint" style="margin-top: 10px">
+        เลขบัตรประชาชน<strong>ไม่ถูกส่งไม่ว่ากรณีใด</strong> — ไม่ได้ดึงมาตั้งแต่ตอนอ่านฐาน
+        และระบบยังตัดเลข 13 หลักทิ้งก่อนส่งอีกชั้น
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">แผนกที่เฝ้า</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="allDepartments" value="1" id="dep-all"
+               {{ settings.allDepartments ? 'checked' : '' }} />
+        เฝ้าทุกแผนก
+      </label>
+
+      <div id="dep-box" style="margin-top: 14px">
+        @if (departments && departments.length)
+          <p class="hint" style="margin-bottom: 10px">
+            เลือกเฉพาะแผนกที่ต้องการ — ตัวเลขคือจำนวนครั้งที่คัดกรองใน 30 วันที่ผ่านมา
+          </p>
+          <div class="check-grid">
+            @each (dep in departments)
+              <label class="checkbox">
+                <input type="checkbox" name="departmentCodes[]" value="{{ dep.dep }}"
+                       {{ (settings.departmentCodes ?? []).includes(dep.dep) ? 'checked' : '' }} />
+                {{ dep.department ?? ('รหัส ' + dep.dep) }} ({{ dep.n }})
+              </label>
+            @end
+          </div>
+        @else
+          <p class="hint">อ่านรายชื่อแผนกจาก HOSxP ไม่ได้ตอนนี้</p>
+        @end
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="panel">
+    <div class="template-head">
+      <h2 class="panel-title">รายที่จะอยู่ในรายงานรอบถัดไป</h2>
+      <span class="pill {{ settings.isEnabled ? 'on' : 'off' }}">
+        {{ cases ? cases.length : 0 }} ราย
+      </span>
+    </div>
+
+    @if (cases && cases.length)
+      <p class="hint" style="margin-bottom: 10px">
+        ช่วง {{ window.from.toFormat('dd/MM HH:mm') }} – {{ window.to.toFormat('dd/MM HH:mm') }} น.
+        · เกณฑ์ บน&gt;{{ settings.sysThreshold }} หรือ ล่าง&gt;{{ settings.diaThreshold }}
+        — ตารางนี้คือสิ่งที่จะออกไปจริงถ้าส่งตอนนี้
+      </p>
+      <div style="overflow-x: auto">
+        <table class="listing">
+          <thead>
+            <tr>
+              <th>ความดัน</th>
+              @if (settings.includeHn)
+                <th>HN</th>
+              @end
+              @if (settings.includeName)
+                <th>ชื่อ-สกุล</th>
+              @end
+              @if (settings.includeAddress)
+                <th>ที่อยู่</th>
+              @end
+              @if (settings.includePhone)
+                <th>เบอร์โทร</th>
+              @end
+              <th>สถานพยาบาลรอง</th>
+              <th>เวลา</th>
+            </tr>
+          </thead>
+          <tbody>
+            @each (row in cases)
+              <tr>
+                <td><strong>{{ Math.round(row.bps ?? 0) }}/{{ Math.round(row.bpd ?? 0) }}</strong></td>
+                @if (settings.includeHn)
+                  <td>{{ row.hn ?? '—' }}</td>
+                @end
+                @if (settings.includeName)
+                  <td>{{ (row.pname ?? '') + (row.fname ?? '') + ' ' + (row.lname ?? '') }}</td>
+                @end
+                @if (settings.includeAddress)
+                  <td>{{ row.addr ?? '—' }}</td>
+                @end
+                @if (settings.includePhone)
+                  <td>{{ row.tel ?? '—' }}</td>
+                @end
+                <td>{{ row.hospsub_name ?? (row.hospsub ? 'รหัส ' + row.hospsub : '—') }}</td>
+                <td>{{ (row.vsttime ?? '').slice(0, 5) }}</td>
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
+    @else
+      <p class="empty-state">ยังไม่มีรายที่เข้าเกณฑ์ในช่วงนี้</p>
+    @end
+  </div>
+
+  <div class="panel {{ settings.isEnabled && cases && cases.length ? 'danger-zone' : '' }}">
+    <h2 class="panel-title">สั่งส่งเดี๋ยวนี้</h2>
+    <p class="hint">
+      ส่งรายงานทันทีโดยไม่รอ {{ settings.sendAt }} น. ใช้ตรรกะเดียวกับรอบอัตโนมัติทุกอย่าง
+      <strong>ส่งแล้วช่วงข้อมูลจะขยับตาม</strong> รอบของวันนี้จึงไม่ยิงซ้ำอีก
+    </p>
+
+    <form method="POST" action="{{ route('notify.vitals.run') }}"
+          onsubmit="return confirm('ส่งรายงาน {{ cases ? cases.length : 0 }} ราย เข้ากลุ่ม LINE เดี๋ยวนี้?')">
+      {{ csrfField() }}
+      <div class="actions">
+        <button type="submit" class="{{ cases && cases.length ? 'danger' : 'secondary' }}"
+                {{ settings.groupId ? '' : 'disabled' }}>
+          ส่งรายงาน {{ cases ? cases.length : 0 }} ราย เดี๋ยวนี้
+        </button>
+      </div>
+      @if (!settings.groupId)
+        <p class="hint danger">ยังไม่ได้เลือกกลุ่ม LINE</p>
+      @end
+    </form>
+  </div>
+
+  <script>
+    // เลือก "ทุกแผนก" แล้วรายการข้างล่างไม่มีความหมาย — ซ่อนไปเลยดีกว่า
+    // ปล่อยให้เห็นแต่กดไม่ได้ทำให้คนคิดว่าหน้าเสีย (เคยเจอมาแล้วในหน้านัดหมาย)
+    var depAll = document.getElementById('dep-all')
+    var depBox = document.getElementById('dep-box')
+
+    function syncDepBox() {
+      depBox.style.display = depAll.checked ? 'none' : ''
+    }
+    depAll.addEventListener('change', syncDepBox)
+    syncDepBox()
+
+    // ติ๊กแผนกใดแผนกหนึ่ง = ตั้งใจจะเลือกเอง ปลด "ทุกแผนก" ให้อัตโนมัติ
+    depBox.addEventListener('change', function (ev) {
+      if (ev.target.checked && depAll.checked) {
+        depAll.checked = false
+        syncDepBox()
+      }
+    })
+
+    // เลื่อนเกณฑ์แล้วเห็นทันทีว่าจะได้กี่รายต่อวัน ไม่ต้องบันทึกก่อน
+    var sys = document.getElementById('sysThreshold')
+    var dia = document.getElementById('diaThreshold')
+    var perDay = document.getElementById('volume-per-day')
+    var total = document.getElementById('volume-total')
+    var timer = null
+
+    var excludeHt = document.getElementById('exclude-known-ht')
+
+    function refreshVolume() {
+      clearTimeout(timer)
+      if (perDay) perDay.textContent = 'กำลังคำนวณ…'
+
+      timer = setTimeout(function () {
+        var url =
+          '{{ route('notify.vitals.preview') }}?sys=' + sys.value +
+          '&dia=' + dia.value +
+          '&ht=' + (excludeHt && excludeHt.checked ? '1' : '0')
+
+        fetch(url, { headers: { Accept: 'application/json' } })
+          .then(function (r) { return r.json() })
+          .then(function (data) {
+            if (!perDay) return
+            if (!data.ok) { perDay.textContent = 'อ่านสถิติไม่ได้'; return }
+            perDay.textContent = data.per_day
+            if (total) total.textContent = data.total
+          })
+          .catch(function () {
+            if (perDay) perDay.textContent = 'อ่านสถิติไม่ได้'
+          })
+      }, 400)
+    }
+
+    sys.addEventListener('input', refreshVolume)
+    dia.addEventListener('input', refreshVolume)
+    if (excludeHt) excludeHt.addEventListener('change', refreshVolume)
+
+    // คำนวณครั้งแรกหลังหน้าโหลดเสร็จ ไม่ได้คำนวณมาจากฝั่งเซิร์ฟเวอร์เพราะช้า
+    refreshVolume()
+  </script>
+@end

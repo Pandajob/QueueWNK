@@ -97,6 +97,54 @@ export const cdcuValidator = vine.compile(
   })
 )
 
+/**
+ * เกณฑ์ความดัน — จำกัดช่วงให้อยู่ในค่าที่เป็นไปได้ทางคลินิก
+ *
+ * ต่ำกว่า 100 จะเข้าเกณฑ์เกือบทุกคนที่เดินเข้าโรงพยาบาล
+ * สูงกว่า 250 คือค่าที่แทบไม่มีใครเดินมาเองได้ ตั้งไว้เท่ากับปิดใช้งาน
+ */
+export const vitalsValidator = vine.compile(
+  vine.object({
+    isEnabled: vine.accepted().optional(),
+    groupId: vine.number().positive().optional(),
+    sysThreshold: vine.number().range([100, 250]),
+    diaThreshold: vine.number().range([60, 150]),
+    allDepartments: vine.accepted().optional(),
+    departmentCodes: vine.array(vine.string().maxLength(16)).optional(),
+    includeHn: vine.accepted().optional(),
+    includeName: vine.accepted().optional(),
+    includeAddress: vine.accepted().optional(),
+    includePhone: vine.accepted().optional(),
+    excludeKnownHt: vine.accepted().optional(),
+    sendAt: vine.string().regex(/^\d{2}:\d{2}$/),
+  })
+)
+
+/**
+ * ตั้งค่าแจ้งเตือนผู้ป่วยกลุ่มประคับประคอง
+ *
+ * `groupCodes` เป็นคีย์ของกลุ่มโรคที่ประกาศไว้ใน pc_watcher ไม่ใช่รหัส ICD
+ * ตัว watcher จะตรวจกับรายการจริงอีกชั้น คีย์แปลก ๆ ที่หลุดมาจะถูกทิ้งเฉย ๆ
+ */
+export const pcValidator = vine.compile(
+  vine.object({
+    isEnabled: vine.accepted().optional(),
+    groupId: vine.number().positive().optional(),
+    notifyImmediate: vine.accepted().optional(),
+    notifyDaily: vine.accepted().optional(),
+    sendAt: vine.string().regex(/^\d{2}:\d{2}$/),
+    allGroups: vine.accepted().optional(),
+    groupCodes: vine.array(vine.string().maxLength(32)).optional(),
+    lookbackDays: vine.number().range([1, 90]),
+    maxPerRun: vine.number().range([1, 200]),
+    includeHn: vine.accepted().optional(),
+    includeName: vine.accepted().optional(),
+    includeAddress: vine.accepted().optional(),
+    includePhone: vine.accepted().optional(),
+    excludeDead: vine.accepted().optional(),
+  })
+)
+
 export const dbSyncValidator = vine.compile(
   vine.object({
     isEnabled: vine.accepted().optional(),

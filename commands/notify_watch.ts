@@ -13,7 +13,7 @@ const TICK_INTERVAL_MS = 60_000
  */
 export default class NotifyWatch extends BaseCommand {
   static commandName = 'notify:watch'
-  static description = 'ส่งข้อความตามตารางเวลา เฝ้าระวังเคส 506 และแจ้งเตือนนัดหมาย'
+  static description = 'ส่งข้อความตามตารางเวลา เฝ้าระวัง 506 ความดันสูง และแจ้งเตือนนัดหมาย'
   static options: CommandOptions = { startApp: true, staysAlive: true }
 
   @flags.boolean({ description: 'รันรอบเดียวแล้วออก ใช้ตอนทดสอบ' })
@@ -26,7 +26,9 @@ export default class NotifyWatch extends BaseCommand {
     const { ScheduleRunner } = await import('#services/schedule_runner')
     const { CdcuWatcher } = await import('#services/cdcu_watcher')
     const { DbSyncWatcher } = await import('#services/db_sync_watcher')
+    const { PcWatcher } = await import('#services/pc_watcher')
     const { AppointmentReminder } = await import('#services/appointment_reminder')
+    const { VitalsWatcher } = await import('#services/vitals_watcher')
 
     for (const signal of ['SIGINT', 'SIGTERM'] as const) {
       process.once(signal, () => {
@@ -38,10 +40,12 @@ export default class NotifyWatch extends BaseCommand {
     const schedules = new ScheduleRunner()
     const cdcu = new CdcuWatcher()
     const dbSync = new DbSyncWatcher()
+    const pc = new PcWatcher()
     const appointments = new AppointmentReminder()
+    const vitals = new VitalsWatcher()
 
     if (this.once) {
-      await this.#cycle(schedules, cdcu, dbSync, appointments, WorkerHeartbeat)
+      await this.#cycle(schedules, cdcu, dbSync, appointments, vitals, pc, WorkerHeartbeat)
       await this.terminate()
       return
     }
@@ -49,7 +53,7 @@ export default class NotifyWatch extends BaseCommand {
     this.logger.info(`เริ่มทำงาน ตรวจทุก ${TICK_INTERVAL_MS / 1000} วินาที`)
 
     while (!this.#stopping) {
-      await this.#cycle(schedules, cdcu, dbSync, appointments, WorkerHeartbeat)
+      await this.#cycle(schedules, cdcu, dbSync, appointments, vitals, pc, WorkerHeartbeat)
       await this.#sleep(TICK_INTERVAL_MS)
     }
 
@@ -60,9 +64,9 @@ export default class NotifyWatch extends BaseCommand {
     schedules: InstanceType<typeof import('#services/schedule_runner').ScheduleRunner>,
     cdcu: InstanceType<typeof import('#services/cdcu_watcher').CdcuWatcher>,
     dbSync: InstanceType<typeof import('#services/db_sync_watcher').DbSyncWatcher>,
-    appointments: InstanceType<
-      typeof import('#services/appointment_reminder').AppointmentReminder
-    >,
+    appointments: InstanceType<typeof import('#services/appointment_reminder').AppointmentReminder>,
+    vitals: InstanceType<typeof import('#services/vitals_watcher').VitalsWatcher>,
+    pc: InstanceType<typeof import('#services/pc_watcher').PcWatcher>,
     WorkerHeartbeat: typeof import('#models/worker_heartbeat').default
   ) {
     const parts: string[] = []
@@ -120,6 +124,51 @@ export default class NotifyWatch extends BaseCommand {
       failed = true
       this.logger.error(`นัดหมายล้มเหลว: ${error.message}`)
       parts.push(`นัดหมายล้มเหลว: ${error.message}`)
+    }
+
+    try {
+      const result = await vitals.tick()
+      if (result.sent) {
+        this.logger.info(`ความดันสูง: พบ ${result.matched} ราย · แจ้งแล้ว ${result.sent}`)
+      }
+      if (result.note) parts.push(`ความดันสูง — ${result.note}`)
+      else if (result.matched) parts.push(`ความดันสูง ${result.matched} ราย`)
+    } catch (error) {
+      failed = true
+      this.logger.error(`ความดันสูงล้มเหลว: ${error.message}`)
+      parts.push(`ความดันสูงล้มเหลว: ${error.message}`)
+    }
+
+    // กวาดการมาโรงพยาบาลของผู้ป่วยประคับประคองให้ระบบติดตาม — ไม่ขึ้นกับการแจ้ง LINE
+    try {
+      const result = await pc.syncVisits()
+      if (!result.skipped) {
+        if (result.visits || result.deaths) {
+          this.logger.info(
+            `ประคับประคอง: กวาด ${result.patients} ราย · มา รพ. ${result.visits} · เสียชีวิต ${result.deaths}`
+          )
+        }
+        parts.push(result.note ? `มา รพ. — ${result.note}` : `มา รพ. ${result.visits} ครั้ง`)
+      }
+    } catch (error) {
+      failed = true
+      this.logger.error(`กวาดการมา รพ. ล้มเหลว: ${error.message}`)
+      parts.push(`กวาดการมา รพ. ล้มเหลว: ${error.message}`)
+    }
+
+    try {
+      const result = await pc.tick()
+      if (result.sent || result.daily) {
+        this.logger.info(
+          `ประคับประคอง: พบ ${result.found} ราย · แจ้งทันที ${result.sent} · สรุปรายวัน ${result.daily}`
+        )
+      }
+      if (result.note) parts.push(`ประคับประคอง — ${result.note}`)
+      else if (result.found) parts.push(`ประคับประคอง ${result.found} ราย`)
+    } catch (error) {
+      failed = true
+      this.logger.error(`ประคับประคองล้มเหลว: ${error.message}`)
+      parts.push(`ประคับประคองล้มเหลว: ${error.message}`)
     }
 
     await WorkerHeartbeat.beat(

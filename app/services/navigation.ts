@@ -73,6 +73,8 @@ export const NAV_SYSTEMS: NavSystem[] = [
           { key: 'nt-dashboard', label: 'แดชบอร์ด', route: 'notify.dashboard' },
           { key: 'nt-schedules', label: 'ตารางเวลา', route: 'notify.schedules' },
           { key: 'nt-cdcu', label: 'CDCU เฝ้าระวังโรค', route: 'notify.cdcu' },
+          { key: 'nt-vitals', label: 'แจ้งเตือนความดันสูง', route: 'notify.vitals' },
+          { key: 'nt-pc', label: 'แจ้งเตือนประคับประคอง', route: 'notify.pc' },
         ],
       },
       {

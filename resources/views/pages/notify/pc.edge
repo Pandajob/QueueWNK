@@ -1,0 +1,359 @@
+@component('layouts/main', { title: 'แจ้งเตือนประคับประคอง', active: 'nt-pc' })
+
+  <h1>แจ้งเตือนผู้ป่วยประคับประคอง</h1>
+  <p class="subtitle">
+    อ่านรหัสวินิจฉัยจาก HOSxP (<code>ovstdiag</code> และ <code>iptdiag</code>)
+    แล้วแจ้งเมื่อพบผู้ป่วยที่เข้าเกณฑ์โรคกลุ่ม Palliative Care เข้ากลุ่ม LINE
+  </p>
+
+  @if (hosxpDown)
+    <div class="panel notice">
+      <strong>อ่านข้อมูลจาก HOSxP ไม่ได้ตอนนี้</strong>
+      <p class="hint" style="margin-top: 6px">
+        ตั้งค่ายังแก้ได้ตามปกติ แต่ตารางด้านล่างจะว่างจนกว่าการเชื่อมต่อจะกลับมา
+        — ตรวจที่ <a href="{{ route('settings.hosxp') }}">ตั้งค่า HOSxP</a>
+      </p>
+    </div>
+  @end
+
+  {{--
+    รับทราบผู้ป่วยเดิมก่อน ไม่งั้นรอบแรกจะยิงผู้ป่วยทั้งฐานออกกลุ่มทีเดียว
+    วางไว้บนสุดเพราะเป็นสิ่งที่ต้องทำก่อนอย่างอื่นจะทำงาน
+  --}}
+  @if (!settings.seeded)
+    <div class="panel notice">
+      <div class="template-head">
+        <h2 class="panel-title">ต้องรับทราบผู้ป่วยเดิมก่อน</h2>
+        <span class="pill off">ยังไม่ได้ทำ</span>
+      </div>
+      <p class="hint">
+        โรคกลุ่มนี้เป็นโรคเรื้อรัง ในฐานข้อมูลมีผู้ป่วยที่เข้าเกณฑ์อยู่แล้ว
+        <strong id="seed-count">กำลังนับ…</strong>
+        ถ้าเปิดใช้งานเลยโดยไม่รับทราบก่อน รอบแรกจะแจ้งทั้งหมดออกกลุ่มทีเดียว
+        <br />
+        การรับทราบคือบันทึกรายเดิมไว้ว่า<strong>เคยเห็นแล้ว</strong>
+        โดย<strong>ไม่ส่งข้อความออกไปไหน</strong> หลังจากนั้นระบบจะแจ้งเฉพาะรายใหม่
+      </p>
+      <form method="POST" action="{{ route('notify.pc.seed') }}" style="margin-top: 14px">
+        {{ csrfField() }}
+        <button type="submit" class="primary">
+          รับทราบผู้ป่วยเดิมทั้งหมด (ไม่ส่งแจ้งเตือน)
+        </button>
+      </form>
+    </div>
+  @end
+
+  <div class="panel {{ settings.isEnabled ? '' : 'notice' }}">
+    <div class="template-head">
+      <h2 class="panel-title">สถานะ</h2>
+      @if (settings.isEnabled && settings.groupId && settings.seeded)
+        <span class="pill on">เปิดอยู่</span>
+      @else
+        <span class="pill off">ปิดอยู่</span>
+      @end
+    </div>
+
+    <p class="hint">
+      @if (settings.notifyImmediate)
+        <strong>แจ้งทันที</strong> — เจอผู้ป่วยรายใหม่แล้วส่งภายในราว 1 นาที
+      @end
+      @if (settings.notifyImmediate && settings.notifyDaily)
+        <br />
+      @end
+      @if (settings.notifyDaily)
+        <strong>สรุปรายวัน</strong> — รวมรายใหม่ของวันส่งเวลา {{ settings.sendAt }} น.
+      @end
+      @if (!settings.notifyImmediate && !settings.notifyDaily)
+        ยังไม่ได้เลือกโหมดแจ้งเตือน — เปิดอย่างน้อยหนึ่งอย่างด้านล่าง
+      @end
+    </p>
+
+    <p class="hint" style="margin-top: 8px">
+      ผู้ป่วยที่บันทึกไว้แล้ว <strong>{{ seenCount }}</strong> ราย
+      @if (settings.seededAt)
+        · รับทราบรายเดิมเมื่อ
+        {{ settings.seededAt.setZone('Asia/Bangkok').toFormat('dd/MM/yyyy HH:mm') }} น.
+      @end
+    </p>
+
+    @if (settings.lastRunNote)
+      <p class="hint" style="margin-top: 8px">
+        รอบล่าสุด: {{ settings.lastRunNote }}
+        @if (settings.lastRunAt)
+          · {{ settings.lastRunAt.setZone('Asia/Bangkok').toFormat('dd/MM HH:mm') }} น.
+        @end
+      </p>
+    @end
+
+    <p class="hint" style="margin-top: 8px">
+      กวาดการมา รพ. ของผู้ป่วยในทะเบียนให้ระบบติดตาม (ทุก 5 นาที ไม่ขึ้นกับการแจ้งเตือน):
+      @if (settings.visitsSyncedAt)
+        ล่าสุด {{ settings.visitsSyncedAt.setZone('Asia/Bangkok').toFormat('dd/MM HH:mm') }} น.
+      @else
+        ยังไม่เคยกวาด — worker จะทำให้เองในรอบถัดไป
+      @end
+    </p>
+  </div>
+
+  <form method="POST" action="{{ route('notify.pc.save') }}">
+    {{ csrfField() }}
+
+    <div class="panel">
+      <h2 class="panel-title">ตั้งค่า</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="isEnabled" value="1" {{ settings.isEnabled ? 'checked' : '' }} />
+        <strong>เปิดการแจ้งเตือน</strong>
+      </label>
+
+      <div class="field" style="margin-top: 14px">
+        <label for="groupId">กลุ่ม LINE ที่จะแจ้ง</label>
+        <select id="groupId" name="groupId">
+          <option value="">— ยังไม่เลือก —</option>
+          @each (group in groups)
+            <option value="{{ group.id }}" {{ settings.groupId === group.id ? 'selected' : '' }}>
+              {{ group.name }}
+            </option>
+          @end
+        </select>
+        @if (!groups.length)
+          <p class="hint danger">
+            ยังไม่มีกลุ่ม — <a href="{{ route('notify.groups.create') }}">เพิ่มกลุ่มก่อน</a>
+          </p>
+        @end
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">โหมดการแจ้งเตือน</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="notifyImmediate" value="1"
+               {{ settings.notifyImmediate ? 'checked' : '' }} />
+        <strong>แจ้งทันทีเมื่อพบผู้ป่วยรายใหม่</strong>
+      </label>
+      <p class="hint" style="margin: 6px 0 16px 26px">
+        ตัวเฝ้าตรวจทุก 1 นาที เจอรายใหม่แล้วส่งเลย เหมาะกับเคสที่ต้องรีบเข้าไปดูแล
+      </p>
+
+      <label class="checkbox">
+        <input type="checkbox" name="notifyDaily" value="1"
+               {{ settings.notifyDaily ? 'checked' : '' }} />
+        <strong>สรุปรายวัน</strong>
+      </label>
+      <p class="hint" style="margin: 6px 0 10px 26px">
+        รวมรายใหม่ที่ยังไม่ได้แจ้งของวันนั้นเป็นข้อความเดียว
+        ถ้าเปิดคู่กับแจ้งทันที รอบสรุปจะเหลือเฉพาะรายที่เกินเพดานต่อรอบ
+      </p>
+
+      <div class="field" style="margin-left: 26px; max-width: 200px">
+        <label for="sendAt">เวลาส่งสรุปรายวัน</label>
+        <input type="time" id="sendAt" name="sendAt" required value="{{ settings.sendAt }}" />
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">กลุ่มโรคที่เฝ้า</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="allGroups" value="1" id="grp-all"
+               {{ settings.allGroups ? 'checked' : '' }} />
+        เฝ้าทุกกลุ่มโรค
+      </label>
+
+      <div id="grp-box" style="margin-top: 14px">
+        <p class="hint" style="margin-bottom: 10px">
+          เลือกเฉพาะกลุ่มที่ต้องการ — ตัวเลขคือจำนวนผู้ป่วยที่เข้าเกณฑ์ย้อนหลัง 1 ปี
+          นับคนละหนึ่งครั้ง คนที่เข้าหลายกลุ่มนับที่กลุ่มแรก
+        </p>
+        <div class="check-grid">
+          @each (g in pcGroups)
+            <label class="checkbox">
+              <input type="checkbox" name="groupCodes[]" value="{{ g.key }}"
+                     {{ (settings.groupCodes ?? []).includes(g.key) ? 'checked' : '' }} />
+              {{ g.label }} ({{ g.codes }})
+              <span class="grp-n" data-key="{{ g.key }}"></span>
+            </label>
+          @end
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ข้อมูลที่จะแสดงในข้อความ</h2>
+      <p class="hint" style="margin-bottom: 12px">
+        ปลายทางเป็นกลุ่มแชทที่มีคนอ่านหลายคน เปิดเท่าที่จำเป็นต่อการตามเยี่ยมจริง
+        — <strong>ไม่มีเลขบัตรประชาชนให้เลือก</strong> ระบบไม่ได้ดึงมาตั้งแต่ต้น
+      </p>
+
+      <label class="checkbox">
+        <input type="checkbox" name="includeHn" value="1" {{ settings.includeHn ? 'checked' : '' }} />
+        แสดง HN
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="includeName" value="1" {{ settings.includeName ? 'checked' : '' }} />
+        แสดงชื่อ-สกุล
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="includeAddress" value="1" {{ settings.includeAddress ? 'checked' : '' }} />
+        แสดงที่อยู่
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" name="includePhone" value="1" {{ settings.includePhone ? 'checked' : '' }} />
+        แสดงเบอร์โทร
+      </label>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">ขั้นสูง</h2>
+
+      <label class="checkbox">
+        <input type="checkbox" name="excludeDead" value="1" {{ settings.excludeDead ? 'checked' : '' }} />
+        <strong>ไม่แจ้งผู้ที่เสียชีวิตแล้ว</strong>
+      </label>
+      <p class="hint" style="margin: 6px 0 16px 26px">
+        ดูจาก <code>patient.death</code> — ในฐานนี้มี 2,710 รายจาก 143,321 ราย
+      </p>
+
+      <div class="row">
+        <div class="field">
+          <label for="lookbackDays">ย้อนดูการวินิจฉัยกี่วัน</label>
+          <input type="number" id="lookbackDays" name="lookbackDays" min="1" max="90"
+                 required value="{{ settings.lookbackDays }}" />
+          <p class="hint">
+            เวชระเบียนคีย์รหัสโรคย้อนหลังได้หลายวัน ถ้าตั้งสั้นเกินจะพลาดรายที่คีย์ช้า
+            ตั้งยาวไม่เปลืองอะไรเพราะกันซ้ำด้วยทะเบียนผู้ป่วยอยู่แล้ว
+          </p>
+        </div>
+        <div class="field">
+          <label for="maxPerRun">แจ้งได้ไม่เกินกี่รายต่อรอบ</label>
+          <input type="number" id="maxPerRun" name="maxPerRun" min="1" max="200"
+                 required value="{{ settings.maxPerRun }}" />
+          <p class="hint">
+            กันกรณีเวชระเบียนคีย์ย้อนหลังทีเดียวหลายร้อยราย
+            รายที่เกินไม่ได้หายไป จะทยอยแจ้งในรอบถัดไป
+          </p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="primary">บันทึก</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="panel">
+    <div class="template-head">
+      <h2 class="panel-title">ผู้ป่วยรายใหม่ที่รอแจ้ง</h2>
+      <span class="pill {{ settings.isEnabled ? 'on' : 'off' }}">
+        {{ pending ? pending.length : 0 }} ราย
+      </span>
+    </div>
+
+    @if (!settings.seeded)
+      <p class="empty-state">ยังไม่ได้รับทราบผู้ป่วยเดิม — กดปุ่มด้านบนก่อน</p>
+    @elseif (pending && pending.length)
+      <p class="hint" style="margin-bottom: 10px">
+        ย้อนดู {{ settings.lookbackDays }} วัน — ตารางนี้คือสิ่งที่จะออกไปจริงถ้าส่งตอนนี้
+      </p>
+      <div style="overflow-x: auto">
+        <table class="listing">
+          <thead>
+            <tr>
+              <th>กลุ่มโรค</th>
+              <th>รหัส</th>
+              @if (settings.includeHn)
+                <th>HN</th>
+              @end
+              @if (settings.includeName)
+                <th>ชื่อ-สกุล</th>
+              @end
+              @if (settings.includeAddress)
+                <th>ที่อยู่</th>
+              @end
+              @if (settings.includePhone)
+                <th>เบอร์โทร</th>
+              @end
+              <th>สถานพยาบาลรอง</th>
+              <th>ประเภท</th>
+            </tr>
+          </thead>
+          <tbody>
+            @each (row in pending)
+              <tr>
+                <td><strong>{{ row.group.label }}</strong></td>
+                <td>{{ row.icd10 }}</td>
+                @if (settings.includeHn)
+                  <td>{{ row.hn }}</td>
+                @end
+                @if (settings.includeName)
+                  <td>{{ (row.pname ?? '') + (row.fname ?? '') + ' ' + (row.lname ?? '') }}</td>
+                @end
+                @if (settings.includeAddress)
+                  <td>{{ row.addr ?? '—' }}</td>
+                @end
+                @if (settings.includePhone)
+                  <td>{{ row.tel ?? '—' }}</td>
+                @end
+                <td>{{ row.hospsub_name ?? (row.hospsub ? 'รหัส ' + row.hospsub : '—') }}</td>
+                <td>{{ row.src === 'IPD' ? 'ผู้ป่วยใน' : 'ผู้ป่วยนอก' }}</td>
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
+
+      <form method="POST" action="{{ route('notify.pc.run') }}" style="margin-top: 14px">
+        {{ csrfField() }}
+        <button type="submit" class="secondary">ส่งสรุปเดี๋ยวนี้</button>
+      </form>
+    @else
+      <p class="empty-state">ไม่มีผู้ป่วยรายใหม่ในช่วงนี้</p>
+    @end
+  </div>
+
+  <div class="panel notice">
+    <h2 class="panel-title">เกณฑ์ที่ใช้</h2>
+    <p class="hint">
+      คัดจากรหัส ICD-10 ทั้งผู้ป่วยนอกและผู้ป่วยใน กันแจ้งซ้ำด้วย <strong>HN</strong>
+      ไม่ใช่ครั้งที่มา — ผู้ป่วยหนึ่งคนแจ้งครั้งเดียวตลอดกาล เพราะโรคกลุ่มนี้เป็นโรคเรื้อรัง
+      คนเดิมมาโรงพยาบาลปีละหลายสิบครั้ง
+      <br /><br />
+      <strong>ไม่ใช่การตัดสินว่าผู้ป่วยเข้าสู่ระยะประคับประคอง</strong>
+      เป็นเพียงการคัดกรองจากรหัสวินิจฉัยเพื่อให้ทีมไปประเมินต่อ
+      การตัดสินจริงต้องใช้ดุลยพินิจของแพทย์
+    </p>
+  </div>
+
+  <script>
+    // ซ่อนรายการกลุ่มโรคเมื่อเลือก "เฝ้าทุกกลุ่ม" — เหมือนหน้าความดันซ่อนรายการแผนก
+    (function () {
+      var all = document.getElementById('grp-all')
+      var box = document.getElementById('grp-box')
+      function sync() { box.style.display = all.checked ? 'none' : '' }
+      all.addEventListener('change', sync)
+      sync()
+    })()
+
+    /**
+     * นับผู้ป่วยแยกกลุ่มหลังหน้าโหลดเสร็จ
+     * query นี้ไล่การวินิจฉัยย้อนหลัง 1 ปี ใช้เวลาราว 6 วินาที ถ้ารอจะบล็อกหน้า
+     */
+    fetch('{{ route('notify.pc.volume') }}')
+      .then(function (r) { return r.json() })
+      .then(function (d) {
+        if (!d.ok) return
+        var seed = document.getElementById('seed-count')
+        if (seed) seed.textContent = d.total.toLocaleString() + ' ราย'
+        d.groups.forEach(function (g) {
+          var el = document.querySelector('.grp-n[data-key="' + g.key + '"]')
+          if (el) el.textContent = ' · ' + g.n + ' ราย'
+        })
+      })
+      .catch(function () {
+        var seed = document.getElementById('seed-count')
+        if (seed) seed.textContent = 'อยู่จำนวนหนึ่ง (นับไม่ได้ตอนนี้)'
+      })
+  </script>
+
+@end

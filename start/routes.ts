@@ -24,6 +24,8 @@ const NotifyDatasetsController = () => import('#controllers/notify_datasets_cont
 const NotifyTemplatesController = () => import('#controllers/notify_templates_controller')
 const NotifySchedulesController = () => import('#controllers/notify_schedules_controller')
 const CdcuController = () => import('#controllers/cdcu_controller')
+const VitalsController = () => import('#controllers/vitals_controller')
+const PcController = () => import('#controllers/pc_controller')
 const DbSyncController = () => import('#controllers/db_sync_controller')
 const CcmController = () => import('#controllers/ccm_controller')
 
@@ -53,9 +55,7 @@ router
 
     // แจ้งเตือนนัดหมายล่วงหน้า — อยู่กลุ่ม Alert เพราะส่งถึงผู้ป่วยเหมือนกัน
     router.get('/settings/appointment', [AppointmentController, 'index']).as('appointment.index')
-    router
-      .post('/settings/appointment', [AppointmentController, 'save'])
-      .as('appointment.save')
+    router.post('/settings/appointment', [AppointmentController, 'save']).as('appointment.save')
     router
       .post('/settings/appointment/run', [AppointmentController, 'runNow'])
       .as('appointment.run')
@@ -191,6 +191,17 @@ router
 
     router.get('/notify/cdcu', [CdcuController, 'index']).as('notify.cdcu')
     router.post('/notify/cdcu', [CdcuController, 'save']).as('notify.cdcu.save')
+
+    router.get('/notify/vitals', [VitalsController, 'index']).as('notify.vitals')
+    router.post('/notify/vitals', [VitalsController, 'save']).as('notify.vitals.save')
+    router.post('/notify/vitals/run', [VitalsController, 'runNow']).as('notify.vitals.run')
+    router.get('/notify/vitals/preview', [VitalsController, 'preview']).as('notify.vitals.preview')
+
+    router.get('/notify/pc', [PcController, 'index']).as('notify.pc')
+    router.post('/notify/pc', [PcController, 'save']).as('notify.pc.save')
+    router.post('/notify/pc/seed', [PcController, 'seed']).as('notify.pc.seed')
+    router.post('/notify/pc/run', [PcController, 'runNow']).as('notify.pc.run')
+    router.get('/notify/pc/volume', [PcController, 'volume']).as('notify.pc.volume')
 
     // --- MOPH CCM ----------------------------------------------------------
     router.get('/ccm', [CcmController, 'index']).as('ccm.index')
