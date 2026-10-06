@@ -41,7 +41,7 @@ export default class PcCheck extends BaseCommand {
       if (result.note) this.logger.warning(result.note)
       else {
         this.logger.success(
-          `กวาด ${result.patients} ราย · มา รพ. ${result.visits} ครั้ง · HOSxP บันทึกเสียชีวิต ${result.deaths} ราย`
+          `กวาด ${result.patients} ราย · มา รพ. ${result.visits} ครั้ง · HOSxP บันทึกเสียชีวิต ${result.deaths} ราย · ย้าย รพ.สต. ${result.sites ?? 0} ราย`
         )
       }
       return

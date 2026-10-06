@@ -212,6 +212,8 @@ export type PcVisitSyncResult = {
   visits: number
   /** รายที่ HOSxP บันทึกว่าเสียชีวิต */
   deaths: number
+  /** รายที่ย้าย รพ.สต. ตามสิทธิของการมาครั้งล่าสุด */
+  sites?: number
   skipped?: boolean
   note?: string
 }
@@ -718,6 +720,7 @@ export class PcWatcher {
     return withHosxp(async (client) => {
       let visits = 0
       let deaths = 0
+      let sites = 0
 
       for (let i = 0; i < hns.length; i += 500) {
         const chunk = hns.slice(i, i + 500)
@@ -778,6 +781,47 @@ export class PcWatcher {
             .update({ death_on: r.deathday ?? now.toISODate(), death_place: place })
           deaths += Number(changed) || 0
         }
+
+        /**
+         * รพ.สต. ตามสิทธิของการมาครั้งล่าสุด — เดิมใช้ค่าจาก visit ที่วินิจฉัยครั้งแรก
+         * พอผู้ป่วยย้ายสิทธิหรือ visit นั้นลงไว้ผิด รายชื่อจะค้างอยู่ รพ.สต. เก่าตลอดไป
+         * และ รพ.สต. ที่ดูแลจริงมองไม่เห็นเคส ข้าม visit ที่ไม่ได้ลงสถานพยาบาลรอง
+         * ไม่งั้นมา ER ครั้งเดียวเคสจะหลุดเป็น "ไม่ระบุ" ทั้งที่สิทธิไม่ได้เปลี่ยน
+         *
+         * ผู้ป่วยที่ทีมเพิ่มเองเติมให้เฉพาะรายที่ยังไม่ได้เลือก ไม่ทับค่าที่ทีมตั้งใจเลือก
+         */
+        const latestSites = await client.select<Record<string, any>>(
+          `SELECT v.hn, v.hospsub, h.name AS hospsub_name,
+                  CASE WHEN h.chwpart = hc.chwpart AND h.amppart = hc.amppart THEN 1 ELSE 0 END
+                    AS in_district
+             FROM vn_stat v
+             JOIN (SELECT hn, MAX(vn) AS vn FROM vn_stat
+                    WHERE hn IN (${marks}) AND hospsub IS NOT NULL AND hospsub <> ''
+                    GROUP BY hn) m ON m.vn = v.vn
+             LEFT JOIN hospcode h ON h.hospcode = v.hospsub
+             LEFT JOIN opdconfig oc ON 1 = 1
+             LEFT JOIN hospcode hc ON hc.hospcode = oc.hospitalcode`,
+          chunk
+        )
+        for (const r of latestSites) {
+          const site = {
+            hospsub: String(r.hospsub),
+            hospsub_name: r.hospsub_name ? String(r.hospsub_name) : null,
+            in_district: Number(r.in_district) === 1 ? 1 : 0,
+          }
+          const changed = await db
+            .from('pc_seen')
+            .where('hn', String(r.hn))
+            .where((q) => q.whereNull('hospsub').orWhereNot('hospsub', site.hospsub))
+            .update({ ...site, created_at: db.raw('created_at') })
+          sites += Number(changed) || 0
+          await db
+            .from('bp_pc_patients')
+            .where('hn', String(r.hn))
+            .where((q) => q.whereNull('hospsub').orWhere('hospsub', ''))
+            .update({ ...site, created_at: db.raw('created_at') })
+            .catch(() => {})
+        }
       }
 
       await db
@@ -785,7 +829,7 @@ export class PcWatcher {
         .update({ visits_synced_at: now.toFormat('yyyy-MM-dd HH:mm:ss') })
         .catch(() => {})
 
-      return { patients: hns.length, visits, deaths }
+      return { patients: hns.length, visits, deaths, sites }
     }) as Promise<PcVisitSyncResult>
   }
 
